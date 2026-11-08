@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>台灣高鐵 3D 模擬器 V76｜後台＋隱私權＋閉塞號誌版</title>
+<style>
+:root{--fg:#e8f0ff;--ac:#ff8a1f;--ok:#3ddc84;--bad:#ff5252;--pn:rgba(8,14,28,.74);color-scheme:dark}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1220;color:var(--fg);font-family:system-ui,"Noto Sans TC",sans-serif}
+#c{display:block;width:100%;height:100%}
+.p{position:fixed;background:var(--pn);border:1px solid #fff2;border-radius:10px;padding:8px 12px}
+#top{left:10px;top:calc(8px + env(safe-area-inset-top,0px));font-size:12px;line-height:1.5}
+#msg{left:104px;right:250px;top:calc(8px + env(safe-area-inset-top,0px));font-size:13px;font-weight:600;text-align:center;color:var(--ac);opacity:0;transition:opacity .3s;pointer-events:none;background:rgba(8,14,28,.55)}#msg.on{opacity:1}
+#cab{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 -140px 90px -60px #000d}
+#cab::before{content:"";position:absolute;left:0;right:0;top:0;height:3.5vh;background:linear-gradient(#0b0e14 70%,transparent)}
+#cab::after{content:"";position:absolute;inset:0 0 28% 0;border-left:4vw solid #0b0e14;border-right:4vw solid #0b0e14;clip-path:polygon(0 0,100% 0,100% 100%,0 100%)}
+#rp{right:10px;top:calc(10px + env(safe-area-inset-top,0px));width:232px;font-size:12px;line-height:1.5;background:linear-gradient(#18223a,#0c1220);border-radius:10px 10px 10px 22px;z-index:2}
+#rp .gr{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;border-top:1px solid #fff2;margin-top:6px;padding-top:6px}#rp .gr b{display:block;font:bold 14px monospace}
+#rp .bd{display:inline-block;border:1px solid #4a78c8;background:#123a73;border-radius:5px;padding:1px 8px;margin:2px 3px 0 0;font-weight:700}
+#rp .st{margin-top:6px;padding:6px;border-radius:6px;text-align:center;font-weight:700}#rp .st.ok{background:#12372a;color:#7dffb0}#rp .st.bad{background:#4a1616;color:#ff8a8a}#rp .st.warn{background:#4a3a10;color:#ffd166}
+#serviceMode{left:50%;top:54px;transform:translateX(-50%);z-index:4;font-size:12px;display:flex;flex-direction:column;gap:5px;width:min(300px,calc(100vw - 32px));max-width:300px;max-height:calc(100vh - 190px);overflow-y:auto;overscroll-behavior:contain}#serviceMode.collapsed{width:auto;max-height:none;overflow:visible;padding:5px 8px}#serviceMode.collapsed>:not(#serviceToggle){display:none!important}#serviceToggle{background:#18375d;color:#fff;border:1px solid #7da9e8;border-radius:7px;padding:7px 10px;font-weight:700;cursor:pointer;white-space:nowrap}#serviceMode select,#serviceMode button:not(#serviceToggle){width:100%;box-sizing:border-box}#serviceMode select{background:#10203b;color:var(--fg);border:1px solid #4a78c8;border-radius:6px;padding:6px;max-width:205px}#serviceMode small{color:#a9c7ff}#announceRow{display:flex;align-items:center;gap:6px;color:#e8f0ff;background:#10203b;border:1px solid #4a78c8;border-radius:6px;padding:6px}#announceRow input{accent-color:#ff8a1f}#vp{left:10px;top:84px;padding:6px 4px;background:linear-gradient(#1b2234,#0c1018);font-size:10px;z-index:2}
+#cp{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;pointer-events:none;padding:0 6px env(safe-area-inset-bottom,0px);z-index:3}
+#dash{position:static;pointer-events:auto;display:flex;gap:12px;align-items:flex-end;padding:10px 14px 8px;background:linear-gradient(#3a414e,#171b24);border-radius:18px 18px 0 0;border-bottom:0;font-size:13px}
+#lp{display:grid;grid-template-columns:repeat(3,14px);gap:6px;padding:8px;background:#0c0f15;border-radius:6px;align-self:center}#lp i{width:14px;height:14px;border-radius:3px;background:#333;border:1px solid #555}#lp i:nth-child(3n){background:#1d6b3a}
+#scr{padding:6px;background:#080c14;border:3px solid #555;border-radius:8px;display:flex;gap:10px;align-items:center}#rd{white-space:nowrap;line-height:1.5}
+#sm{display:flex;flex-direction:column;gap:6px;font-size:12px}#sm div{background:#0a1d33;border:2px solid #556;border-radius:5px;padding:4px 8px;min-width:100px}
+.lvw{display:flex;flex-direction:column;align-items:center;font-size:11px;gap:3px}.trk{position:relative;width:12px;height:90px;background:#05080f;border-radius:6px;border:1px solid #fff3;touch-action:none;cursor:ns-resize}.trk::before{content:"";position:absolute;inset:-4px -16px}
+.kn{position:absolute;left:-10px;width:30px;height:16px;border-radius:8px;background:linear-gradient(#333,#000);border:2px solid #999;top:37px}
+#ops{display:grid;grid-template-columns:repeat(2,64px);gap:5px}#ops button{height:30px;border-radius:7px;border:1px solid #fff3;background:#1b2a48;color:var(--fg);font-size:12px;touch-action:none}#ops button:active{background:#2f4a80}
+.bad{color:var(--bad)}.ok{color:var(--ok)}
+#evb{display:none;left:50%;top:22%;transform:translateX(-50%);z-index:6;max-width:min(540px,88vw);text-align:center;font-weight:700;font-size:14px;line-height:1.6;pointer-events:none}#evb.bad{border-color:#ff5252;color:#ffb3b3;background:rgba(74,22,22,.85)}#evb.warn{border-color:#ffd166;color:#ffe29a;background:rgba(74,58,16,.85)}#evb.ok{border-color:#3ddc84;color:#9bffc4;background:rgba(18,55,42,.85)}
+#evflash{position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;box-shadow:inset 0 0 120px 30px rgba(255,40,40,.65);transition:opacity .15s}
+@media(max-width:900px){#cp{zoom:.72;flex-wrap:wrap}#rp{width:180px;zoom:.85}#vp{zoom:.7}#msg{left:96px;right:190px}}
+@media(max-height:620px){#cp{zoom:.75}#vp{zoom:.6}}
+
+#cab::after{border:0!important;background:#0b0e14;clip-path:polygon(0 0,7% 0,3.5% 100%,96.5% 100%,93% 0,100% 0,100% 100%,0 100%)}
+body.clear #cab,body.clear .mir,body.clear #cp,body.clear .kb{display:none}
+.mir{position:fixed;top:44%;width:13.5%;height:22%;border:6px solid #0a0d12;box-shadow:inset 0 0 14px #000a;pointer-events:none;z-index:1;background:linear-gradient(135deg,#fff2 0,transparent 35%)}#mL{left:0;border-left:0;border-radius:0 16px 16px 0}#mR{right:0;border-right:0;border-radius:16px 0 0 16px}
+.kb{position:fixed;font-size:13px;line-height:1.9;z-index:2;pointer-events:none;background:rgba(8,14,28,.6);border-radius:10px;padding:6px 10px}.kb b{display:inline-block;min-width:22px;text-align:center;border:1.5px solid #cfe;border-radius:5px;padding:0 4px;margin-right:8px;font:600 14px monospace}
+#kb1{left:10px;top:calc(8px + env(safe-area-inset-top,0px))}#kb2{left:10px;bottom:90px}
+#loc{position:fixed;right:12px;bottom:12px;z-index:5;background:rgba(8,14,28,.85);border:1px solid #fff3;border-radius:10px;padding:8px 14px;font-weight:700}
+#top{left:170px!important}#msg{left:320px!important}#vp{top:calc(10px + env(safe-area-inset-top,0px))!important;left:10px!important;cursor:pointer;z-index:3}#vp:not(.open) canvas,#vp:not(.open)>div:nth-child(2){display:none}#vpt{font-size:12px}
+#rp{width:250px;background:linear-gradient(#142042,#0b1226ee)}#rp .sp{font-size:15px}#rp .sp b{font-size:40px;font-family:system-ui}#rp .rw{display:flex;gap:14px;font-size:14px;line-height:1.6}#rp .rw i{font-style:normal;color:#7fa8ff;min-width:44px}
+#dash{background:linear-gradient(#2a303b,#11151d);border-top:2px solid #4a5568}#scr{background:#050914;border-color:#2a3552}#rd{color:#8fb4ff;font-size:12px}
+@media(max-width:900px){.kb,#loc{display:none}#top{left:10px!important}#msg{left:96px!important}#vp{top:10px!important;left:10px!important}.mir{top:46%}#hud{zoom:.75}}
+
+#hud{right:10px;top:calc(10px + env(safe-area-inset-top,0px));width:250px;z-index:3;background:linear-gradient(#142042,#0b1226ee);border-radius:10px 10px 10px 22px;padding:10px 12px}
+#hud>.p{position:static!important;background:none!important;border:0!important;padding:0!important;border-radius:0!important;transform:none;width:auto;zoom:1!important}
+#hud #msg{margin-bottom:6px;font-size:12px;text-align:left}#hud #msg:not(.on){display:none}
+#hud #top{font-size:11.5px;line-height:1.45}
+#hud #rp,#hud #vp{margin-top:6px;padding-top:6px!important;border-top:1px solid #fff2!important}
+#rp .rw{display:inline-flex;width:49%;box-sizing:border-box;gap:6px;font-size:13px}#rp .rw i{min-width:0}
+.kb div{break-inside:avoid}#kb2{columns:2;column-gap:14px}
+
+#dash{flex-wrap:wrap;justify-content:center;max-width:960px;gap:14px;align-items:center;padding:12px 20px 10px;background:linear-gradient(#2e343f,#10141b);border-radius:26px 26px 0 0;box-shadow:inset 0 2px #5b6575,0 -4px 18px #0008}
+.bz{background:#050912;border:3px solid #1d2432;border-radius:10px;padding:8px 10px}
+#lcd{min-width:190px}#lcd .lr{display:flex;gap:10px;align-items:center;padding:4px 0;border-bottom:1px solid #1f3a6a;font-size:14px}#lcd .lr i{font-style:normal;color:#4d8dff;min-width:42px}#lcd .lr b{color:#e8f0ff;font-weight:600}#lcd .ic{background:#1f9d55;border-radius:4px;padding:1px 4px;font-size:12px}#lcd .sm{font-size:12px;border:0;color:#9fb6e0}
+#gw{position:relative;padding:4px}#gw canvas{width:190px;height:190px;display:block}#gw #pn{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);background:#0a1c4d;border:2px solid #3d8bff;border-radius:6px;padding:0 12px;font-size:20px;color:#6fa8ff}
+#bar{position:relative;width:16px;height:150px;background:#05090f;border:2px solid #2a3552;border-radius:3px;overflow:hidden}#bf{position:absolute;left:0;right:0;bottom:0;height:0}#bar::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(transparent 0 8px,#05090f 8px 10px)}
+#dpan{display:flex;flex-direction:column;gap:6px;align-items:center}#dpan .dl{color:#3f6fb5;font-size:13px}#dpan .db{display:flex;gap:8px}#dpan button{width:46px;height:46px;border-radius:9px;border:1px solid #556;background:linear-gradient(#3a404c,#1c212b);color:#cfd8e8;font-size:11px;touch-action:none}#dpan .red{border-radius:50%;width:40px;height:40px;background:radial-gradient(circle at 35% 30%,#ff6a5a,#a10f0f);border:2px solid #400}
+#ops{grid-template-columns:repeat(2,70px)}#kb2{bottom:12px}
+@media(min-width:1201px){#cp{padding-left:230px;padding-right:130px}}
+@media(max-width:1200px){.kb,#loc{display:none}}
+#cab::before,#cab::after{display:none!important}
+#recordAnnounce,#stopAnnounce,#playAnnounce,#recordStatus{display:none!important}
+#hs{width:74px;height:86px;border-radius:12px;border:2px solid #556;background:linear-gradient(#3a404c,#1c212b);color:#dfe8f8;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;cursor:pointer}#hs .ic{font-size:28px}#hs small{opacity:.6}
+#hs.on{background:linear-gradient(#b3261e,#6d130e);border-color:#ff8a80;animation:pa 1s infinite}@keyframes pa{50%{box-shadow:0 0 18px #ff5a4a}}
+#paBar{display:none;position:fixed;top:100px;left:50%;transform:translateX(-50%);z-index:6;background:#b3261e;color:#fff;font-weight:700;padding:8px 18px;border-radius:16px;box-shadow:0 0 16px #ff5a4a;text-align:center;max-width:min(92vw,360px)}#paBar .pm{height:8px;background:#0006;border-radius:4px;margin:6px 0;overflow:hidden}#paBar .pm i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7dffb0,#ffd166 70%,#ff5a4a);transition:width .05s}#paBar .pv{display:flex;gap:8px;align-items:center;font-size:12px}#paBar .pv input{flex:1}#paBar small{display:block;font-size:11px;color:#ffe3a0;font-weight:400}
+#hint{flex-basis:100%;text-align:center;font-size:12px;color:#9fb6e0;border-top:1px solid #fff2;padding-top:6px}#hint b{display:inline-block;min-width:18px;text-align:center;border:1px solid #9fb6e0;border-radius:4px;padding:0 4px;margin:0 3px 0 10px;color:#e8f0ff;font:600 12px monospace}
+#ops{grid-template-columns:repeat(3,62px)!important}#ops button{font-size:12px;padding:6px 2px}
+</style></head><body>
+<div id="paBar"><div>📢 廣播中｜直接說話，再按 B 或點話筒掛上（或放開 T）</div><div class="pm"><i id="paLv"></i></div><label class="pv">音量 <input id="paVol" type="range" min="0" max="150" value="100"></label><small id="paWarn"></small></div>
+<canvas id="c"></canvas><div id="cab"></div><div class="mir" id="mL"></div><div class="mir" id="mR"></div>
+<div class="kb" id="kb2"><div><b>W</b>加速</div><div><b>S</b>減速</div><div><b>A</b>左看</div><div><b>D</b>右看</div><div><b>Space</b>煞車</div><div><b>E</b>出庫</div><div><b>C</b>車門</div><div><b>N</b>夜間</div><div><b>V</b>視角切換</div></div><div id="loc"></div>
+<div class="p open" id="vp"><b id="vpt">🚄 路線圖 ▾</b><div><span style="color:#7a5ae0">■</span>地下 <span style="color:#4aa3ff">■</span>高架 <span style="color:#5fcf72">■</span>地面 <span style="color:#c28a3a">■</span>山隧</div><canvas id="vc" width="96" height="360"></canvas></div>
+<div class="p" id="hud"><div class="p" id="msg">載入中…</div><div class="p" id="top"></div><div class="p" id="rp"></div></div>
+<div class="p collapsed" id="serviceMode"><button id="serviceToggle" type="button" aria-expanded="false">☰ 駕駛設定（展開）</button><label for="modeSelect">停站模式</label><select id="modeSelect"><option value="all">站站樂｜每站停靠</option><option value="frog">跳蛙式｜隔站停靠</option><option value="direct">直達車｜直達左營</option></select><small id="modeHint">每一站都停</small><div style="padding:6px;border:1px solid #4a78c8;border-radius:6px;background:#10203b;color:#e8f0ff"><b>操控模式：手動操控｜最高 <span id="cfgMax">320</span> km/h</b><small style="display:block;color:#a9c7ff">已取消正常模式；超過 <span id="cfgWarn">300</span> km/h 會警示</small></div><label style="display:block;margin-top:4px">📢 廣播：點儀表台「話筒」或按 B 拿起話筒，直接說話；再按一次掛上</label><button id="recordAnnounce" type="button" style="background:#8b321d;color:white;border:1px solid #e99a76;border-radius:6px;padding:7px;cursor:pointer">🎙️ 開始錄製我的廣播</button><button id="stopAnnounce" type="button" disabled style="background:#424b5c;color:white;border:1px solid #8390a5;border-radius:6px;padding:7px;cursor:pointer">⏹ 停止錄製</button><button id="playAnnounce" type="button" disabled style="background:#175a54;color:white;border:1px solid #58cbbd;border-radius:6px;padding:7px;cursor:pointer">🔊 播放我的廣播錄音</button><small id="recordStatus" style="display:block;color:#a9c7ff">按下錄製、親自說出廣播，再按停止；播放時會使用你的錄音。</small><div style="padding:6px;border:1px solid #4a78c8;border-radius:6px;background:#10203b;color:#e8f0ff"><label style="display:flex;gap:6px;align-items:center">👁 視野 <input id="fovR" type="range" min="45" max="110" step="1" value="70" style="flex:1;min-width:0"><b id="fovV" style="min-width:34px;text-align:right">70°</b></label><small style="display:block;color:#a9c7ff">數字越大視野越廣（預設 70°）；也可按 [ ] 微調</small></div><div style="padding:6px;border:1px solid #c28a3a;border-radius:6px;background:#2a1d0c;color:#ffe29a"><b>⚠ 災害／突發事件模擬</b><label style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" id="evAuto" checked>手動駕駛中隨機發生</label><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px"><button type="button" data-ev="quake" style="background:#6b3a1d;color:#fff;border:1px solid #e0a070;border-radius:6px;padding:6px 2px;cursor:pointer">🌋 地震</button><button type="button" data-ev="typhoon" style="background:#1d4a6b;color:#fff;border:1px solid #70b0e0;border-radius:6px;padding:6px 2px;cursor:pointer">🌀 颱風</button><button type="button" data-ev="person" style="background:#6b1d2a;color:#fff;border:1px solid #e07088;border-radius:6px;padding:6px 2px;cursor:pointer">🚶 臥軌</button></div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:5px"><button type="button" data-ev="signal" style="background:#5a4a1d;color:#fff;border:1px solid #e0c070;border-radius:6px;padding:6px 2px;cursor:pointer">🚦 號誌</button><button type="button" data-ev="power" style="background:#3a3a5e;color:#fff;border:1px solid #9a9ae0;border-radius:6px;padding:6px 2px;cursor:pointer">⚡ 停電</button><button type="button" data-ev="equip" style="background:#4a4a4a;color:#fff;border:1px solid #b0b0b0;border-radius:6px;padding:6px 2px;cursor:pointer">🔧 設備</button><button type="button" data-ev="intrude" style="background:#4a3a1d;color:#fff;border:1px solid #d0a060;border-radius:6px;padding:6px 2px;cursor:pointer">🐄 異物</button><button type="button" data-ev="flood" style="background:#1d4a5e;color:#fff;border:1px solid #70c0d8;border-radius:6px;padding:6px 2px;cursor:pointer">🌊 淹水</button><button type="button" data-ev="rock" style="background:#4a4238;color:#fff;border:1px solid #b0a090;border-radius:6px;padding:6px 2px;cursor:pointer">⛰ 落石</button></div><button type="button" data-ev="chain" style="margin-top:5px;width:100%;background:#5e1d5e;color:#fff;border:1px solid #d070d0;border-radius:6px;padding:6px;cursor:pointer">⛓ 多事件連鎖</button><label style="display:flex;gap:6px;align-items:center;margin-top:5px">事件頻率<select id="evDiff"><option value="0">低</option><option value="1" selected>標準</option><option value="2">高</option></select></label><div id="evScn" style="margin-top:4px;color:#ffe29a"></div><button type="button" id="evReroll" style="margin-top:4px;background:#424b5c;color:#fff;border:1px solid #8390a5;border-radius:6px;padding:5px;cursor:pointer">🎲 重新抽選本次任務情境</button><small id="evLog" style="display:block;color:#ffd9a0;margin-top:4px">本任務尚未發生事件。</small><button type="button" data-ev="clear" style="margin-top:5px;background:#424b5c;color:#fff;border:1px solid #8390a5;border-radius:6px;padding:6px;cursor:pointer">解除目前事件</button><small style="display:block;color:#ffd9a0">手動觸發需在「手動駕駛」行駛中；風速限速為模擬用簡化規則。</small></div></div>
+<div id="cp"><div class="p" id="dash">
+<div id="lcd" class="bz"></div>
+<div id="gw" class="bz"><canvas id="g" width="200" height="200"></canvas><b id="pn">N</b></div>
+<div id="bar"><i id="bf"></i></div>
+<div class="lvw"><div>手把</div><div class="trk"><div id="pl" class="kn"></div></div></div>
+<div id="dpan" class="bz"><div class="dl">車門</div><div class="db"><button data-a="o">◀ ▶</button><button data-a="c">▶ ◀</button></div><button class="red" data-h="b" title="緊急煞車"></button></div>
+<button id="hs" type="button"><span class="ic">📞</span><b>話筒</b><small>B</small></button>
+<div id="ops"><button data-h="w">加速 W</button><button data-h="b">煞車</button><button data-a="e">發車 E</button><button data-a="n">夜間 N</button><button data-a="m">靜音 M</button><button data-a="h">鳴笛 H</button><button data-h="a">◀ 左看 A</button><button data-h="d">右看 D ▶</button><button data-a="v">視角 V</button></div>
+<div id="hint"><b>W</b>加速<b>S</b>減速<b>Space</b>煞車<b>A</b>左轉頭<b>D</b>右轉頭<b>V</b>切換視角<b>B</b>拿起話筒廣播<b>T</b>按住說話<b>E</b>出庫<b>C</b>車門<b>N</b>夜間</div>
+<div style="display:none"><div id="lp"></div><div id="rd"></div><div id="sm"><div id="s1"></div><div id="s2"></div></div></div>
+</div></div>
+<div class="p" id="evb"></div><div id="evflash"></div><div id="exdark" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:2"></div><div id="fade" style="position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s;z-index:9"></div><div class="p" id="incident" style="display:none;left:50%;top:42%;transform:translate(-50%,-50%);z-index:10;width:min(340px,85vw);text-align:center;line-height:1.6"><b id="incidentTitle" style="font-size:18px;color:#ffd166">突發狀況</b><p id="incidentText">列車需要檢查，請選擇處置方式。</p><button id="goDepot" style="padding:9px 12px;margin:4px;border-radius:7px;background:#b75b18;color:white;border:0">請求基地維修</button><button id="continueRun" style="padding:9px 12px;margin:4px;border-radius:7px;background:#1b477c;color:white;border:0">繼續行駛</button></div>
+<script>document.getElementById('vp').onclick=function(){var o=this.classList.toggle('open');document.getElementById('vpt').textContent=o?'🚄 路線圖 ▾':'🚄 路線圖 ▸';};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// V29：駕駛設定預設收合，避免遮擋駕駛視線；需要時可展開。
+(()=>{const panel=document.getElementById('serviceMode');const toggle=document.getElementById('serviceToggle');if(panel&&toggle){toggle.addEventListener('click',()=>{const collapsed=panel.classList.toggle('collapsed');toggle.textContent=collapsed?'☰ 駕駛設定（展開）':'✕ 收起駕駛設定';toggle.setAttribute('aria-expanded',String(!collapsed));});}})();
+
+(function(){
+const $=id=>document.getElementById(id);
+if(typeof THREE==='undefined'){$('msg').textContent='3D 引擎載入失敗，請檢查網路後重新整理。';$('msg').className='p on';return;}
+const R=new THREE.WebGLRenderer({canvas:$('c'),antialias:true,powerPreference:'high-performance'});R.setPixelRatio(Math.min(devicePixelRatio||1,1.5));R.outputEncoding=THREE.sRGBEncoding;
+const DAY=new THREE.Color(0x9fd0f0),NIGHT=new THREE.Color(0x070b18),TUN=new THREE.Color(0x0a0d14);
+const sc=new THREE.Scene();sc.background=DAY.clone();sc.fog=new THREE.Fog(0x9fd0f0,250,2600);
+const cam=new THREE.PerspectiveCamera(70,1,.3,4000);
+const mc=new THREE.PerspectiveCamera(42,1,.3,260);mc.layers.enable(1);var MR=[];
+function mirLayout(){const g=i=>document.getElementById(i).getBoundingClientRect(),h=g('hud'),v=g('vp'),d=g('dash'),H=innerHeight;[['mL',v.bottom],['mR',h.bottom]].forEach(a=>{const e=document.getElementById(a[0]),top=a[1]+10;e.style.top=top+'px';e.style.height=Math.max(70,Math.min(H*.24,d.top-10-top))+'px';});}
+function mirSetup(){mirLayout();MR=['mL','mR'].map(i=>{const r=document.getElementById(i).getBoundingClientRect();return[r.left+6,innerHeight-r.bottom+6,Math.max(1,r.width-12),Math.max(1,r.height-12)];});}
+function resize(){mirSetup();R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+const hemi=new THREE.HemisphereLight(0xffffff,0x6a7a55,.85);sc.add(hemi);
+const sun=new THREE.DirectionalLight(0xfff2d8,.7);sun.position.set(80,120,-60);sc.add(sun);
+let s=7;const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+const M=c=>new THREE.MeshLambertMaterial({color:c});
+const gB=new THREE.BoxGeometry(1,1,1);
+function box(w,h,d,c,x,y,z,p){const m=new THREE.Mesh(gB,M(c));m.scale.set(w,h,d);m.position.set(x,y,z);(p||sc).add(m);return m;}
+function tex(w,h,fn,rx,ry){const c=document.createElement('canvas');c.width=w;c.height=h;fn(c.getContext('2d'));const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(rx,ry);t.anisotropy=4;return t;}
+function label(t,d){const c=document.createElement('canvas');c.width=256;c.height=80;const x=c.getContext('2d');x.fillStyle='#ff7a00';x.fillRect(0,0,256,80);x.fillStyle='#fff';x.textAlign='center';x.font='bold 38px sans-serif';x.fillText(t,128,42);x.font='15px sans-serif';x.fillText(d||'',128,68);const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false}));sp.scale.set(14,4.4,1);return sp;}
+// ---- 路線資料（縮尺 1:5，真實里程 ÷5）----
+// ===== V74：後台設定（預設值；可被 hsr-config.json／雲端／本機預覽覆蓋）=====
+const CFG={v:1,ev:{quake:{on:1,w:1},typhoon:{on:1,w:1},person:{on:1,w:.9},signal:{on:1,w:1},power:{on:1,w:.9},equip:{on:1,w:1},intrude:{on:1,w:1},flood:{on:1,w:.9},rock:{on:1,w:.9},chain:{on:1,w:1}},chainW:[.4,1,1.6],diff:1,auto:true,cool:[[110,70],[70,70],[30,40]],drive:{max:320,warn:300},wind:[17,24,31],scn:null,bc:{},sb:{url:'',key:'',log:0},priv:{on:0,org:'',contact:'',days:365,ver:'1'}};
+const bcT=(k,d,n)=>{const t=(CFG.bc&&CFG.bc[k])||d;return n?t.replace(/\{name\}/g,n):t;};
+const cfgCool=()=>{const c=CFG.cool[ev.diff]||[70,70];return c[0]+Math.random()*c[1];};
+const SID=Math.random().toString(36).slice(2,10);
+let CON=null;try{CON=JSON.parse(localStorage.getItem('hsrConsent')||'null');}catch(e){}
+function tlog(k,d){if(!(CFG.priv.on&&CON&&CON.ok&&CON.v===CFG.priv.ver))return;const r=Object.assign({k,sid:SID,pid:CON.pid,t:Date.now(),z:Math.round(z),kmh:Math.round(v*3.6),scn:scn.n,diff:ev.diff},d||{});try{const a=JSON.parse(localStorage.getItem('hsrLog')||'[]');a.push(r);localStorage.setItem('hsrLog',JSON.stringify(a.slice(-300)));}catch(e){}
+ if(CFG.sb&&CFG.sb.url&&CFG.sb.log)try{fetch(CFG.sb.url+'/rest/v1/hsr_logs',{method:'POST',keepalive:true,headers:Object.assign({apikey:CFG.sb.key,'Content-Type':'application/json',Prefer:'return=minimal'},CFG.sb.key.startsWith('eyJ')?{Authorization:'Bearer '+CFG.sb.key}:{}),body:JSON.stringify({sid:SID,kind:k,data:r})}).catch(()=>{});}catch(e){}}
+const ST=[['汐止基地',-1800,'模擬起點（規劃中）',1],['南港',0,'台北市南港區'],['台北',1200,'台北市中正區'],['板橋',2600,'新北市板橋區'],['桃園',7600,'桃園市中壢區青埔'],['新竹',13000,'新竹縣竹北市'],['苗栗',19200,'苗栗縣後龍鎮'],['台中',33200,'台中市烏日區'],['彰化',38000,'彰化縣田中鎮'],['雲林',45000,'雲林縣虎尾鎮'],['嘉義',51800,'嘉義縣太保市'],['台南',60800,'台南市歸仁區'],['左營',70000,'高雄市左營區'],['左營基地',71800,'終點入庫',1]].map(a=>({n:a[0],z:a[1],d:a[2],dp:!!a[3]}));
+// 全路線高程控制點：基地地面出庫、南港至板橋地下、板橋後平順爬升；其餘路段避免不合理的急升急降。
+const H=12,P=[[-4000,0],[-1150,0],[-650,-2.5],[-250,-8],[2600,-8],[3000,-7.6],[3400,-6.5],[3800,-4.7],[4200,-2.6],[4600,-0.8],[5000,0],[6200,0],[7000,H],[14200,H],[15400,0],[19800,0],[21300,H],[35200,H],[36300,0],[38800,0],[40300,H],[71000,H],[80000,H]];
+function Ef(q){if(q<=P[0][0])return P[0][1];for(let i=1;i<P.length;i++)if(q<=P[i][0]){const a=P[i-1],b=P[i],dx=b[0]-a[0],t=Math.max(0,Math.min(1,(q-a[0])/dx));const ma=i===1?(b[1]-a[1])/(b[0]-a[0]):(b[1]-P[i-2][1])/(b[0]-P[i-2][0]);const mb=i===P.length-1?(b[1]-a[1])/dx:(P[i+1][1]-a[1])/(P[i+1][0]-a[0]);const t2=t*t,t3=t2*t;const y=(2*t3-3*t2+1)*a[1]+(t3-2*t2+t)*dx*ma+(-2*t3+3*t2)*b[1]+(t3-t2)*dx*mb;return Math.max(Math.min(a[1],b[1]),Math.min(Math.max(a[1],b[1]),y));}return P[P.length-1][1];}
+const MT=[[5400,6300],[16000,17000],[17800,18600],[36600,37400]],inMT=q=>MT.some(m=>q>m[0]&&q<m[1]);
+const hwf=q=>ST.some(S=>!S.dp&&q>S.z-340&&q<S.z+50)?11.5:6.2;
+const grade=q=>(Ef(q+30)-Ef(q-30))/60*1000;
+const seg=q=>inMT(q)?'山區隧道':Ef(q)<-5?'地下段':Ef(q)>6?'高架段':'地面段';
+// ---- 地面與遠山 ----
+const gt=tex(256,256,x=>{const cs=['#7fae5a','#8cba62','#a9b95a','#6f9e52','#b5a45a'];for(let i=0;i<4;i++)for(let j=0;j<4;j++){x.fillStyle=cs[(i*3+j*5)%5];x.fillRect(i*64,j*64,64,64);}},40,60);
+// 地表拆成左右兩側與中央地表帶。接近地下化坡道時隱藏中央地表，避免平坦地板蓋在下降中的軌道前方。
+const groundMat=new THREE.MeshLambertMaterial({map:gt,side:THREE.FrontSide});
+function makeGround(w,x){const m=new THREE.Mesh(new THREE.PlaneGeometry(w,6400),groundMat);m.rotation.x=-Math.PI/2;m.position.set(x,0,0);m.frustumCulled=false;sc.add(m);return m;}
+const groundL=makeGround(1982,-1009),groundR=makeGround(1982,1009),groundC=makeGround(36,0);let groundTile=NaN;
+const mtn=[];for(let i=0;i<16;i++){const m=new THREE.Mesh(new THREE.ConeGeometry(1,1,6),M(0x5f7a66));sc.add(m);mtn.push({m,idx:-1e9});}
+// 地下化入口：兩側地形肩部沿下坡逐漸下降；中央列車通道保持開口，進入覆蓋段後再由隧道頂板封閉。
+const rampBanks=[];for(const side of [-1,1]){const geom=new THREE.BufferGeometry();const verts=[],inds=[];const z0=-1120,z1=-280,steps=42;for(let i=0;i<=steps;i++){const q=z0+(z1-z0)*i/steps;const e=Ef(q);const outerY=0.15;const innerY=Math.max(e+0.25,-7.65);const outerX=side*18,innerX=side*4.6;verts.push(outerX,outerY,q,innerX,innerY,q);if(i<steps){const a=i*2,b=a+1,c=a+2,d=a+3;if(side<0)inds.push(a,b,c,b,d,c);else inds.push(a,c,b,b,c,d);}}geom.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geom.setIndex(inds);geom.computeVertexNormals();const mesh=new THREE.Mesh(geom,new THREE.MeshLambertMaterial({color:0x8c9a78,side:THREE.DoubleSide}));sc.add(mesh);rampBanks.push(mesh);}
+
+// ---- 軌道區塊（循環使用）----
+const CL=80,NC=40,tt=tex(32,32,x=>{x.fillStyle='#6b6b6b';x.fillRect(0,0,32,32);x.fillStyle='#4a3b30';x.fillRect(0,12,32,6);},1,CL/2);
+const mBed=new THREE.MeshLambertMaterial({map:tt}),mCon=M(0x9a9a96),mRail=M(0xd8d8d8),mPole=M(0x8a8a8a),mWire=M(0x222222),mWall=M(0xb4b6b2),mHill=M(0x6d8a62),mLamp=new THREE.MeshBasicMaterial({color:0xfff1c0}),mBld=[M(0xc9c3b6),M(0xb8c4cc),M(0xd8cdb5),M(0xa9a9a9)];
+const bx=(m,p)=>{const o=new THREE.Mesh(gB,m);p.add(o);return o;},mk=(m,g,n)=>Array.from({length:n},()=>bx(m,g));
+const chunks=[];for(let i=0;i<NC;i++){const g=new THREE.Group();sc.add(g);chunks.push({g,idx:-1e9,bed:bx(mBed,g),deck:bx(mCon,g),rails:mk(mRail,g,4),pier:mk(mCon,g,2),cap:mk(mCon,g,2),par:mk(mCon,g,2),mast:mk(mPole,g,2),arm:mk(mPole,g,2),wire:mk(mWire,g,2),wall:mk(mWall,g,2),roof:bx(mWall,g),lamp:bx(mLamp,g),mound:bx(mHill,g),bl:mk(mBld[0],g,2)});}
+function T(o,x,y,z,sx,sy,sz,rx){o.position.set(x,y,z);o.scale.set(sx,sy,sz);o.rotation.x=rx||0;}
+function setChunk(c,idx){const zc=idx*CL+CL/2,E=Ef(zc),pit=-Math.atan2(Ef(zc+40)-Ef(zc-40),CL),hw=hwf(zc),mt=inMT(zc),ug=E<-5||mt,open=E<-1&&!ug;
+ const r=k=>{const x=Math.sin(idx*127.1+k*311.7)*43758.5453;return x-Math.floor(x);};c.idx=idx;
+ T(c.deck,0,E-1.55,zc,hw*2,1.9,CL,pit);c.deck.visible=E>1;T(c.bed,0,E-.45,zc,hw*2,.35,CL,pit);
+ c.rails.forEach((o,i)=>T(o,[-2.97,-1.53,1.53,2.97][i],E+.12,zc,.12,.22,CL,pit));
+ [-20,20].forEach((dz,i)=>{T(c.pier[i],0,(E-3.5)/2,zc+dz,2.8,Math.max(E-3.5,.1),2.8);c.pier[i].visible=E>4;T(c.cap[i],0,E-3,zc+dz,hw*1.7,1,3.2);c.cap[i].visible=E>3;
+  const mastH=ug?5.2:7.4,armY=E+(ug?5.25:6.9);
+  T(c.mast[i],0,E+mastH/2,zc+dz,.3,mastH,.3);T(c.arm[i],0,armY,zc+dz,4.6,.15,.15);});
+ [-1,1].forEach((sd,i)=>{T(c.par[i],sd*hw,E+.7,zc,.3,1.4,CL,pit);const rampOpening=BASES.some(b=>zc>=b.from-80&&zc<=b.from+1050);c.par[i].visible=E>1&&!ug&&!(sd<0&&rampOpening);T(c.wire[i],sd*2.25,E+(ug?4.75:6.7),zc,.06,.06,CL,pit);c.wire[i].visible=true;
+  const h=ug?6.5:.3-E;T(c.wall[i],sd*hw,E+h/2,zc,.5,Math.max(h,.1),CL);c.wall[i].visible=ug||open;
+  const vis=!ug&&E>-1&&r(1)>.3,hh=6+r(5+i)*30;c.bl[i].material=mBld[Math.floor(r(9+i)*4)];T(c.bl[i],(sd)*(40+r(2+i)*150),hh/2,zc,10+r(7)*16,hh,12+r(8)*20);c.bl[i].visible=vis;});
+ T(c.roof,0,E+6.6,zc,hw*2+1,.8,CL);c.roof.visible=ug;T(c.lamp,0,E+6.1,zc,1.2,.1,12);c.lamp.visible=ug;T(c.mound,0,20,zc,160,40,CL);c.mound.visible=false;}
+// ---- 車站 ----
+function mkStation(S){const E=Ef(S.z),ug=E<-5,zc=S.z-150;
+ [-1,1].forEach(sd=>{box(5.8,1,330,0xbdbdb6,sd*7.1,E+.5,zc);box(.3,.02,330,0xf2c200,sd*4.55,E+1.02,zc);
+  if(!ug)box(8,.3,330,0xeeeeee,sd*7.1,E+6.5,zc);
+  for(let k=-150;k<=150;k+=30)box(.3,ug?6.5:5.5,.3,0x777777,sd*9.8,E+(ug?3.25:3.75),zc+k);});
+ if(!ug){const hh=E>3?E+6:16;box(40,hh,110,0xdfe3e8,-38,hh/2,zc);box(40.2,1.2,110.2,0xff7a00,-38,hh,zc);}
+ box(1.8,.06,.6,0xff2b2b,-2.25,E+.05,S.z-.3);}
+ST.forEach(S=>{if(!S.dp)mkStation(S);});
+// ---- V32：南港站入口、溝槽護欄、行道樹、玻璃帷幕大樓、站內燈列 ----
+(()=>{const pe=Ef(-338),cc=0xb9bbb7;
+const sg=tex(1024,180,x=>{x.fillStyle='#3a3d42';x.fillRect(0,0,1024,180);x.strokeStyle='#ff8a1f';x.lineWidth=8;for(let i=0;i<3;i++){x.beginPath();x.moveTo(250,120-i*18);x.lineTo(430,90-i*18);x.stroke();}x.fillStyle='#fff';x.font='bold 74px sans-serif';x.fillText('南港站',470,92);x.font='34px sans-serif';x.fillText('Nangang Station',480,140);},1,1);
+sg.wrapS=sg.wrapT=THREE.ClampToEdgeWrapping;
+box(2.6,14.5,3,cc,-12.8,pe+4.5,-338);box(2.6,14.5,3,cc,12.8,pe+4.5,-338);box(28,4.6,3,0x3a3d42,0,pe+9.4,-338);
+const sp=new THREE.Mesh(new THREE.PlaneGeometry(22,3.9),new THREE.MeshBasicMaterial({map:sg,fog:false}));sp.position.set(0,pe+9.4,-339.6);sp.rotation.y=Math.PI;sc.add(sp);
+const gm=new THREE.MeshLambertMaterial({color:0x9fe0e8,transparent:true,opacity:.35});
+for(let q=-940;q<-340;q+=40)[-1,1].forEach(sd=>{const g=new THREE.Mesh(gB,gm);g.scale.set(.08,1.1,40);g.position.set(sd*6.4,.9,q+20);sc.add(g);box(.12,.1,40,0xcccccc,sd*6.4,1.5,q+20);});
+const tg=new THREE.SphereGeometry(1,8,6),tm=[0x3f7d3a,0x4c8c3e,0x35702f].map(c=>M(c));
+for(let q=-1100;q<120;q+=26)[-1,1].forEach(sd=>{if(rnd()<.25)return;const x=sd*(q<-250?20+rnd()*9:15+rnd()*8),h=4+rnd()*3,c=new THREE.Mesh(tg,tm[Math.floor(rnd()*3)]);c.scale.set(2.4+rnd()*1.5,h*.5,2.4+rnd()*1.5);c.position.set(x,h*.9+1,q+rnd()*10);sc.add(c);box(.5,h*.6,.5,0x5a4030,x,h*.3,c.position.z);});
+const wt=tex(64,128,x=>{x.fillStyle='#7fa1b8';x.fillRect(0,0,64,128);for(let i=0;i<8;i++)for(let j=0;j<16;j++){x.fillStyle=(i*7+j*3)%5?'#cfe6f2':'#4d6a80';x.fillRect(i*8+1,j*8+2,6,5);}},1,1);
+for(let i=0;i<26;i++){const sd=i%2?1:-1,w=14+rnd()*12,h=45+rnd()*75,t=wt.clone();t.needsUpdate=true;t.repeat.set(w/8,h/12);const b=new THREE.Mesh(gB,new THREE.MeshLambertMaterial({map:t}));b.scale.set(w,h,w*(.8+rnd()*.5));b.position.set(sd*(36+rnd()*50),h/2,-950+rnd()*1250);sc.add(b);}
+const ct=tex(128,64,x=>{const g=x.createRadialGradient(64,32,4,64,32,60);g.addColorStop(0,'rgba(255,255,255,.9)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,64);},1,1),cg=new THREE.Group();
+for(let i=0;i<14;i++){const c=new THREE.Sprite(new THREE.SpriteMaterial({map:ct,fog:false,transparent:true,opacity:.8,depthWrite:false}));c.scale.set(500+rnd()*400,170,1);c.position.set((rnd()-.5)*3000,420+rnd()*250,300+rnd()*2400);cg.add(c);}sc.add(cg);window.__cg=cg;
+const us=ST.filter(S=>!S.dp&&Ef(S.z)<-5),LG=new THREE.InstancedMesh(gB,new THREE.MeshBasicMaterial({color:0xfff6d8}),us.length*132),o4=new THREE.Object3D();let n=0;
+us.forEach(S=>{const E=Ef(S.z);for(let k=0;k<33;k++)[-7.3,-2.25,2.25,7.3].forEach(x=>{o4.position.set(x,E+6.1,S.z-308+k*10);o4.scale.set(.5,.08,5);o4.updateMatrix();LG.setMatrixAt(n++,o4.matrix);});
+for(let k=-300;k<=0;k+=30){box(.7,6.2,.7,0xb9bbb7,0,E+3.1,S.z+k);if(k%60===0)[-1,1].forEach(sd=>{box(2.8,.7,.12,0x10151c,sd*6,E+5,S.z+k);box(2.2,.1,.14,0xffa63a,sd*6,E+5,S.z+k-.1);});}});
+LG.frustumCulled=false;sc.add(LG);})();
+function depot(z,x,name,trk){for(let k=0;k<4;k++)box(.2,.2,420,0x888888,x+k*5,.15,z+60);
+ const cx=x+7.5,sz=z+195,len=150,wc=0xcfd3d8;
+ box(22,1,len,0x3a4a66,cx,7.5,sz);box(.6,7,len,wc,x-3.5,3.5,sz);box(.6,7,len,wc,x+18.5,3.5,sz);box(22,7,.6,wc,cx,3.5,z+270);
+ box(.8,7,.8,0x8a8f98,x-3.5,3.5,z+120);box(.8,7,.8,0x8a8f98,x+18.5,3.5,z+120);box(22,1.2,.8,0x3a4a66,cx,7,z+120);
+ for(let k=0;k<2;k++){box(3.3,3.4,100,0xf4f6f8,x+5*k+5,2,z+205);box(3.34,.3,100,0xff7a00,x+5*k+5,1.8,z+205);}
+ const l=label(name,'維修基地');l.position.set(cx,13,z+120);sc.add(l);}
+depot(-1800,16,'汐止基地');depot(71800,16,'左營基地');depot(12000,-28,'六家基地');depot(32000,-28,'烏日基地');depot(50900,-28,'太保基地');
+// 基地多股進出線：可見的扇形岔線連接主線附近與基地股道；動態維修支線由選擇基地時建立。
+function branchRail(x1,z1,x2,z2){const dx=x2-x1,dz=z2-z1,len=Math.hypot(dx,dz),m=box(.13,.18,len,0xb7b9bb,(x1+x2)/2,.18,(z1+z2)/2);m.rotation.y=Math.atan2(dx,dz);}
+function depotFan(z,x){for(let k=0;k<4;k++){const target=x+k*5;for(const off of [-.72,.72]){branchRail(-2.25+off,z-180,target+off,z+110);branchRail(target+off,z+110,target+off,z+270);}}}
+depotFan(-1800,16);
+// ---- 12 節列車（流線鴨嘴車頭）----
+function noseGeo(L){const S=10,Pn=10,pos=[],idx=[];for(let i=0;i<=S;i++){const t=i/S,hw=1.65*(1-.72*Math.pow(t,1.5)),top=4.2-2*Math.pow(t,1.2),bot=.55+1.3*Math.pow(t,1.6),ym=(top+bot)/2,hh=(top-bot)/2;
+ for(let j=0;j<Pn;j++){const a=j/Pn*Math.PI*2,c=Math.cos(a),n=Math.sin(a);pos.push(Math.sign(c)*Math.pow(Math.abs(c),.45)*hw,ym+Math.sign(n)*Math.pow(Math.abs(n),.45)*hh,t*L);}}
+ for(let i=0;i<S;i++)for(let j=0;j<Pn;j++){const a=i*Pn+j,b=i*Pn+(j+1)%Pn,c=a+Pn,d=b+Pn;idx.push(a,c,b,b,c,d);}
+ const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();return g;}
+function makeTrain(split){const g=new THREE.Group(),cars=[],W=M(0xf4f6f8),D=M(0x16253a),K=M(0x222222),O=M(0xff7a00),B=M(0x111111),Gy=M(0xb8bec6);
+ if(split)for(let i=0;i<12;i++){const c=new THREE.Group();g.add(c);cars.push(c);}
+ const own=zl=>Math.max(0,Math.min(11,Math.floor(-zl/26))),att=(o,zl)=>{if(split){const i=own(zl);o.position.z=zl+(12.5+i*26);cars[i].add(o);}else{o.position.z=zl;g.add(o);}};
+ const add=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(gB,m);o.scale.set(w,h,d);o.position.set(x,y,0);att(o,z);return o;};
+ for(let i=0;i<12;i++){const cz=-(12.5+i*26);add(3.3,3.2,25,W,0,2.6,cz);add(2.6,.5,24,Gy,0,4.4,cz);add(3.2,.8,24,K,0,.95,cz);add(3.34,.25,25,O,0,1.95,cz);add(3.34,.15,25,B,0,1.6,cz);add(3.36,.9,21,D,0,3.1,cz);[-8,8].forEach(b=>add(1.9,.5,3.2,K,0,1,cz+b));}
+ const ng=noseGeo(10),nm=new THREE.MeshLambertMaterial({color:0xf4f6f8,side:THREE.DoubleSide}),HL=new THREE.MeshBasicMaterial({color:0xffffe0}),TL=new THREE.MeshBasicMaterial({color:0xff3030});
+ g.noseParts=[];
+[[0,1],[-311,-1]].forEach(a=>{const n=new THREE.Mesh(ng,nm);if(a[1]<0)n.rotation.y=Math.PI;att(n,a[0]);const np=[n];
+const w=add(2.2,.05,3.4,D,0,3.78,a[0]+a[1]*3.3);w.rotation.x=.19*a[1];np.push(w);[-.45,.45].forEach(x=>np.push(add(.3,.25,.1,a[1]>0?HL:TL,x,2.05,a[0]+a[1]*10.05)));if(a[1]>0)g.noseParts=np;});
+if(split){const dg=new THREE.Group(),dn=new THREE.Mesh(ng,nm);dg.add(dn);
+const dw=new THREE.Mesh(gB,D);dw.scale.set(2.2,.05,3.4);dw.position.set(0,3.78,3.3);dw.rotation.x=.19;dg.add(dw);
+[-.45,.45].forEach(x=>{const l=new THREE.Mesh(gB,HL);l.scale.set(.3,.25,.1);l.position.set(x,2.05,10.05);dg.add(l);});
+dg.visible=false;g.noseDeb=dg;const bk=add(3.3,3.2,.3,K,0,2.6,.2);bk.visible=false;g.noseBulk=bk;}
+ const LN=new THREE.MeshBasicMaterial({color:0x66e0ff});[-1,1].forEach(sd=>{add(.12,.3,.12,B,sd*1.72,4.05,-3);add(.3,.22,.5,B,sd*1.86,4.2,-3);add(.1,.1,.06,LN,sd*1.86,4.2,-3.28);});
+ g.cars=cars;return g;}
+const ON=makeTrain();ON.rotation.y=Math.PI;ON.position.x=2.25;ON.visible=false;sc.add(ON);let oz=null,otm=1e9,look=0,demo=0,onSp=0;const PT=makeTrain(true);PT.traverse(o=>o.layers.set(1));sc.add(PT);if(PT.noseDeb)sc.add(PT.noseDeb);
+// ---- V39：3D 駕駛室內裝（頂板、A 柱、側板、儀表台、雨刷、遮陽板），固定在車體、轉頭時不跟著轉 ----
+const cabRig=new THREE.Group();
+const cb=(w,h,d,c,x,y,z,rx,ry,rz)=>{const o=new THREE.Mesh(gB,new THREE.MeshLambertMaterial({color:c,emissive:0x0d1016}));o.scale.set(w,h,d);o.position.set(x,y,z);o.rotation.set(rx||0,ry||0,rz||0);cabRig.add(o);return o;};
+cb(3.6,.12,3,0x20252d,0,1.12,-1.4);cb(3.6,.35,.12,0x1a1e25,0,.95,-1.62);cb(1.4,.08,.5,0x14171d,0,1.04,-1.2);
+cb(.2,1.9,.14,0x15181e,-1.5,.2,-1.6,0,0,.14);cb(.2,1.9,.14,0x15181e,1.5,.2,-1.6,0,0,-.14);
+cb(.12,2.4,3,0x1d222a,-2.2,0,-.6);cb(.12,2.4,3,0x1d222a,2.2,0,-.6);
+cb(3.4,.5,1,0x1b1f27,0,-.78,-1.05,-.16);cb(3.4,.06,.5,0x2a303a,0,-.5,-1.3,-.2);
+cb(.9,.025,.04,0x0b0b0b,.55,-.46,-1.56,0,0,.35);cb(1,.03,.55,0x2b3038,-.55,.88,-1.2,.45);cb(1,.03,.55,0x2b3038,.55,.88,-1.2,.45);
+for(let i=-4;i<=4;i++){const o=new THREE.Mesh(gB,new THREE.MeshBasicMaterial({color:[0x39ff88,0xffb020,0x39ff88,0xff4040][Math.abs(i)%4]}));o.scale.set(.05,.02,.03);o.position.set(i*.25,-.49,-1.38);o.rotation.x=-.2;cabRig.add(o);}
+const monRT=[0,1].map(()=>{const t=new THREE.WebGLRenderTarget(512,288,{minFilter:THREE.LinearFilter,magFilter:THREE.LinearFilter});t.texture.encoding=THREE.sRGBEncoding;return t;}),monCam=[0,1].map(()=>{const c=new THREE.PerspectiveCamera(66,512/288,.3,500);c.layers.enable(1);return c;}),monCv=[0,1].map(()=>{const c=document.createElement('canvas');c.width=512;c.height=64;return c;}),monTx=monCv.map(c=>{const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;return t;}),monTxt=['',''];
+function monDraw(i,t){const c=monCv[i].getContext('2d');c.fillStyle='#0a0d12';c.fillRect(0,0,512,64);c.fillStyle='#ff4a3a';c.beginPath();c.arc(26,32,8,0,6.3);c.fill();c.fillStyle='#9fe0a8';c.font='bold 26px sans-serif';c.textBaseline='middle';c.fillText(t,46,34);monTx[i].needsUpdate=true;}
+[-1,1].forEach((sd,i)=>{const x=sd*1.78,y=.4,zz=-1.12,ry=-sd*(Math.PI/2-.5),n=[Math.sin(ry),Math.cos(ry)];
+ cb(.08,.7,.08,0x14171d,sd*2.02,y-.3,zz-.08);cb(.3,.06,.06,0x14171d,sd*1.9,y,zz-.04);
+ cb(.8,.62,.05,0x0b0d12,x,y-.04,zz,0,ry,0);
+ const sc1=new THREE.Mesh(new THREE.PlaneGeometry(.72,.405),new THREE.MeshBasicMaterial({map:monRT[i].texture,toneMapped:false,fog:false}));sc1.position.set(x+n[0]*.04,y+.04,zz+n[1]*.04);sc1.rotation.y=ry;cabRig.add(sc1);
+ const st1=new THREE.Mesh(new THREE.PlaneGeometry(.72,.09),new THREE.MeshBasicMaterial({map:monTx[i],toneMapped:false,fog:false}));st1.position.set(x+n[0]*.04,y-.235,zz+n[1]*.04);st1.rotation.y=ry;cabRig.add(st1);monDraw(i,(sd<0?'左':'右')+' 月台監視器');});
+cabRig.traverse(o=>o.layers.set(2));cam.layers.enable(2);sc.add(cabRig);
+
+// ---- V33：其餘各站（地下／高架／地面）統一南港風格 ----
+(()=>{const EN={台北:'Taipei',板橋:'Banqiao',桃園:'Taoyuan',新竹:'Hsinchu',苗栗:'Miaoli',台中:'Taichung',彰化:'Changhua',雲林:'Yunlin',嘉義:'Chiayi',台南:'Tainan',左營:'Zuoying'},cc=0xb9bbb7;
+const wt=tex(64,128,x=>{x.fillStyle='#7fa1b8';x.fillRect(0,0,64,128);for(let i=0;i<8;i++)for(let j=0;j<16;j++){x.fillStyle=(i*7+j*3)%5?'#cfe6f2':'#4d6a80';x.fillRect(i*8+1,j*8+2,6,5);}},1,1);
+const gm=new THREE.MeshLambertMaterial({color:0x9fe0e8,transparent:true,opacity:.35}),tg=new THREE.SphereGeometry(1,8,6),tm=[0x3f7d3a,0x4c8c3e,0x35702f].map(c=>M(c));
+const els=ST.filter(S=>!S.dp&&Ef(S.z)>=-5),LG=new THREE.InstancedMesh(gB,new THREE.MeshBasicMaterial({color:0xfff6d8}),els.length*66),o4=new THREE.Object3D();let n=0;
+ST.forEach((S,si)=>{if(S.dp)return;const E=Ef(S.z),ug=E<-5,zs=S.z-330;
+ if(si!==1){const sg=tex(1024,180,x=>{x.fillStyle='#3a3d42';x.fillRect(0,0,1024,180);x.strokeStyle='#ff8a1f';x.lineWidth=8;for(let i=0;i<3;i++){x.beginPath();x.moveTo(250,120-i*18);x.lineTo(430,90-i*18);x.stroke();}x.fillStyle='#fff';x.font='bold 74px sans-serif';x.fillText(S.n+'站',470,92);x.font='34px sans-serif';x.fillText((EN[S.n]||'')+' Station',480,140);},1,1);
+  sg.wrapS=sg.wrapT=THREE.ClampToEdgeWrapping;const w=ug?8.5:13.6,h=w/5.69,y=ug?E+5.4:E+8.4;
+  if(ug)box(24,1.6,1,0x3a3d42,0,y,zs);else{box(.9,9.5,.9,cc,-12.5,E+4.2,zs);box(.9,9.5,.9,cc,12.5,E+4.2,zs);box(26,2.6,1,0x3a3d42,0,y,zs);}
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:sg,fog:false}));p.position.set(0,y,zs-.55);p.rotation.y=Math.PI;sc.add(p);}
+ if(!ug){for(let k=0;k<33;k++)[-7.3,7.3].forEach(x=>{o4.position.set(x,E+6.3,S.z-308+k*10);o4.scale.set(.5,.08,5);o4.updateMatrix();LG.setMatrixAt(n++,o4.matrix);});
+  [-1,1].forEach(sd=>{const g=new THREE.Mesh(gB,gm);g.scale.set(.08,1.2,330);g.position.set(sd*10.2,E+1.6,S.z-150);sc.add(g);for(let k=-300;k<=0;k+=60){box(2.8,.7,.12,0x10151c,sd*6,E+5.2,S.z+k);box(2.2,.1,.14,0xffa63a,sd*6,E+5.2,S.z+k-.1);}});}
+ if(si!==1){for(let q=S.z-330;q<S.z+40;q+=28)[-1,1].forEach(sd=>{if(rnd()<.3)return;const x=sd*(15+rnd()*9),h=4+rnd()*3,c=new THREE.Mesh(tg,tm[Math.floor(rnd()*3)]);c.scale.set(2.4+rnd()*1.5,h*.5,2.4+rnd()*1.5);c.position.set(x,h*.9+1,q+rnd()*10);sc.add(c);box(.5,h*.6,.5,0x5a4030,x,h*.3,c.position.z);});
+  for(let i=0;i<8;i++){const w=14+rnd()*12,h=40+rnd()*70,t=wt.clone();t.needsUpdate=true;t.repeat.set(w/8,h/12);const b=new THREE.Mesh(gB,new THREE.MeshLambertMaterial({map:t}));b.scale.set(w,h,w*(.8+rnd()*.5));b.position.set((i%2?1:-1)*(50+rnd()*50),h/2,S.z-330+rnd()*360);sc.add(b);}}});
+LG.count=n;LG.frustumCulled=false;sc.add(LG);})();
+// ---- 月台人群（腿／身／頭，多種膚色與衣色）----
+const NP=520,pT=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.23,.65,6),M(0xffffff),NP),pG=new THREE.InstancedMesh(new THREE.CylinderGeometry(.11,.12,.85,6),M(0xffffff),NP),pH=new THREE.InstancedMesh(new THREE.SphereGeometry(.12,8,6),M(0xffffff),NP);
+const PL=[],skin=[0xf0c8a0,0xe0b890,0xc99a70,0x8d5f3c];
+for(let i=0;i<NP;i++){PL.push({x:(i<NP*.65?-1:1)*(5.4+rnd()*3.6),u:rnd(),sp:.3+rnd()*.7,ph:rnd()*6.28,h:.92+rnd()*.16,w:rnd()<.5,b:true,th:rnd()*.45});pT.setColorAt(i,new THREE.Color().setHSL(rnd(),.5,.35+rnd()*.3));pG.setColorAt(i,new THREE.Color().setHSL(.6,.25,.12+rnd()*.25));pH.setColorAt(i,new THREE.Color(skin[Math.floor(rnd()*4)]));}
+[pT,pG,pH].forEach(o=>{o.instanceColor.needsUpdate=true;o.frustumCulled=false;o.count=0;sc.add(o);});const pd=new THREE.Object3D();
+const platW=[0,0],platB=[0,0],doneStn={};
+function people(t,z){platW[0]=platW[1]=platB[0]=platB[1]=0;let n=null;for(const S of ST)if(!S.dp&&Math.abs(S.z-150-z)<650){n=S;break;}
+ if(!n){pT.count=pG.count=pH.count=0;return;}const E=Ef(n.z)+1;pT.count=pG.count=pH.count=NP;
+ if(boarded)doneStn[n.z]=1;const pr=doneStn[n.z]?1:(doorOpen?Math.max(0,1-boardT/3):0);
+ PL.forEach((p,i)=>{const sd=p.x<0?1:0,zz=n.z-10-p.u*290+(p.w?Math.sin(t*.4*p.sp+p.ph)*4:0);let px=p.x;const ok=p.x<0&&Math.abs(z-n.z)<=15;let th=p.th,zc=zz;
+  if(p.b&&ok){const zb=n.z-10-p.u*290,far=zb>z-16||zb<z-296,w=Math.max(0,Math.min(1,pr/.4));if(far)th=.4+p.th*.5;zc=zz+(Math.max(z-300,Math.min(z-14,zz))-zz)*w;const k=Math.max(0,Math.min(1,(pr-th)/.1));if(k>0)px=p.x+(-3.9-p.x)*k;if(k>=1){platB[sd]++;pd.position.set(0,-50,zc);pd.scale.set(0,0,0);pd.updateMatrix();pG.setMatrixAt(i,pd.matrix);pT.setMatrixAt(i,pd.matrix);pH.setMatrixAt(i,pd.matrix);return;}}
+  platW[sd]++;
+  pd.position.set(px,E+.425*p.h,zc);pd.scale.set(1,p.h,1);pd.updateMatrix();pG.setMatrixAt(i,pd.matrix);
+  pd.position.y=E+1.18*p.h;pd.updateMatrix();pT.setMatrixAt(i,pd.matrix);
+  pd.position.y=E+1.64*p.h;pd.scale.set(1,1,1);pd.updateMatrix();pH.setMatrixAt(i,pd.matrix);});
+ pT.instanceMatrix.needsUpdate=pG.instanceMatrix.needsUpdate=pH.instanceMatrix.needsUpdate=true;}
+// ---- 狀態 ----
+let z=ST[0].z,v=0,idx=0,phase='dwell',doorOpen=false,doorA=0,boardT=0,boarded=false,brk=0,pen=0,penAtLastStop=0,scores=[],t0=0,last=performance.now(),night=false,warned=false,lastW=0,pw=0,lev=0,tun=0,AC,eng,eg,audioMaster=null,playingAnnounce=null,mute=false,mt;
+const keys={};
+let serviceMode='all',speedMode='manual';
+let lastAnnouncedTarget=-1, speechReady=false, lastVoiceText='';
+function unlockSpeech(){if(!('speechSynthesis' in window))return;try{speechReady=true;speechSynthesis.resume();speechSynthesis.getVoices();}catch(e){}}
+function voiceBroadcast(msg){if(mute){say('已靜音，廣播未播放。');return;}say('📢 '+msg);if(!('speechSynthesis' in window)||!('SpeechSynthesisUtterance' in window)){say('📢 '+msg+'（此瀏覽器不支援語音，請使用 Chrome 並開啟音效）');return;}try{unlockSpeech();lastVoiceText=msg;const speakNow=()=>{const u=new SpeechSynthesisUtterance(msg);u.lang='zh-TW';u.rate=.92;u.pitch=1.02;const voices=speechSynthesis.getVoices();const zh=voices.find(x=>/^zh-TW/i.test(x.lang))||voices.find(x=>/^zh[-_]/i.test(x.lang))||voices.find(x=>/Chinese|中文/i.test(x.name));if(zh)u.voice=zh;u.onerror=()=>{};speechSynthesis.cancel();speechSynthesis.speak(u);};if(speechSynthesis.getVoices().length===0){speechSynthesis.addEventListener('voiceschanged',speakNow,{once:true});setTimeout(()=>{if(speechSynthesis.pending||speechSynthesis.speaking)return;speakNow();},700);}else speakNow();}catch(e){}}
+function stationAnnouncement(name){voiceBroadcast(bcT('station',`列車即將抵達${name}站，請準備下車。下車時請注意月台間隙，並留意隨身物品。`,name));}
+function arrivalAnnouncement(name){voiceBroadcast(bcT('arrival',`列車已抵達${name}站，請先下後上，並留意月台間隙及隨身物品。`,name));}
+function departureAnnouncement(name){voiceBroadcast(bcT('departure',`開往下一停靠站的列車即將發車。祝您旅途愉快。`));}
+// 快節奏模式：模擬時間加速，儀表速度仍顯示列車本身的 km/h。
+const TIME_SCALE=4;
+let incidentPending=false,incidentDone=false,slowUntil=-1,maintenanceReturn=false,maintenanceTarget=null,maintenanceFromZ=0,maintenanceX=-2.25;
+let dirS=1,cabT=0,cabMode=null,cabFlip=false;
+function routeX(q){if(!maintenanceTarget)return -2.25;const m=maintenanceTarget;return -2.25+(m.x+2.25)*sm01((q-m.from)/(m.to-m.from));}
+// 動態維修支線：選擇基地後，建立可見的岔線、枕木與雙鋼軌；列車和相機沿支線側移。
+let maintenanceTrackGroup=null;
+function clearMaintenanceTrack(){if(maintenanceTrackGroup){sc.remove(maintenanceTrackGroup);maintenanceTrackGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material&&o.material.dispose)o.material.dispose();});maintenanceTrackGroup=null;}}
+const MAIN_END=71000,END_BR={n:'左營基地',z:72000,from:70500,to:71600,zd:71750,x:16,vmax:22,final:true};
+const sm01=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+function branchY(q){if(!maintenanceTarget)return Ef(q);const m=maintenanceTarget,y0=Ef(m.from);if(q<=m.from)return Ef(q);/* V68：列車高度與 buildRamp 的橋面使用同一條曲線（前 1000 m 保持原高度，再平順下降），避免列車提早下沉而穿過橋面與地面 */const zEnd=m.final?72070:m.z+70,ds=m.from+1000,de=zEnd-10;if(q<=ds)return Math.max(0,y0);const t=sm01((q-ds)/(de-ds));return Math.max(0,y0)*(1-t);}
+function Et(q){return(maintenanceTarget&&(phase==='diverting'||phase==='maintenance'||phase==='end'||phase==='returning'||phase==='clear'||phase==='cabchange'))?branchY(q):Ef(q);}
+function buildRamp(m,zEnd){
+ // 照片式立體匝道：先以平順曲線離開主線，再形成獨立混凝土橋面、護欄與橋墩。
+ const zs=m.from-300,es=Ef(zs);
+ // 移除主線上方的大型橫架，避免視野中出現突兀灰色方塊。
+ const cv=document.createElement('canvas');cv.width=512;cv.height=128;const cx=cv.getContext('2d');
+ cx.fillStyle='#0f5b3a';cx.fillRect(0,0,512,128);cx.strokeStyle='#fff';cx.lineWidth=6;cx.strokeRect(6,6,500,116);
+ cx.fillStyle='#fff';cx.textAlign='center';cx.font='bold 40px sans-serif';cx.fillText('↙ '+m.n+'匝道',256,58);cx.font='26px sans-serif';cx.fillText('道岔・限速 75 km/h',256,101);
+ // 匝道方向資訊保留在 HUD，不額外放置視野前方的方向牌。
+ const y0=Ef(m.from),X=q=>-2.25+(m.x+2.25)*sm01((q-m.from)/(m.to-m.from)),Y=q=>{const descentStart=m.from+1000,descentEnd=zEnd-10;return q<=descentStart?y0:y0*(1-sm01((q-descentStart)/(descentEnd-descentStart)));};
+ const put=(o,dx,dy,dz,x,y,z)=>{o.position.set(x,y,z);o.rotation.order='YXZ';o.rotation.y=Math.atan2(dx,dz);o.rotation.x=-Math.atan2(dy,Math.hypot(dx,dz));return o;};
+ for(let q=m.from;q<zEnd;q+=18){
+  const q1=Math.min(zEnd,q+18),x0=X(q),x1=X(q1),h0=Y(q),h1=Y(q1),qm=(q+q1)/2,xm=(x0+x1)/2,ym=(h0+h1)/2,dz=q1-q,dx=x1-x0,dy=h1-h0,len=Math.hypot(dx,dy,dz),flat=Math.max(.001,Math.hypot(dx,dz)),nx=dz/flat,nz=-dx/flat;
+  // 寬橋面＋深色橋底，讓匝道有厚度而不是單薄軌道
+  put(box(8.2,1.0,len,0xaeb4b8,xm,ym-.48,qm),dx,dy,dz,xm,ym-.48,qm);
+  put(box(8.6,.16,len,0x747d86,xm,ym-1.05,qm),dx,dy,dz,xm,ym-1.05,qm);
+  // V60：橋底兩側連續縱梁，讓橋面看起來是完整的高架箱梁，而非單片薄板。
+  for(const sd of [-1,1]){
+   const gx=xm+nx*sd*3.15, gz=qm+nz*sd*3.15;
+   put(box(.48,.72,len,0x858d93,gx,ym-1.38,gz),dx,dy,dz,gx,ym-1.38,gz);
+   put(box(.10,.10,len,0xb8bec2,gx+nx*sd*.25,ym-1.04,gz+nz*sd*.25),dx,dy,dz,gx+nx*sd*.25,ym-1.04,gz+nz*sd*.25);
+  }
+  // 枕木與兩條鋼軌
+  if(Math.round(q/18)%2===0){const tie=box(5.1,.13,.42,0x51483f,xm,ym+.10,qm);tie.rotation.y=Math.atan2(dx,dz);}
+  for(const sd of [-1,1]){
+   const rx=xm+nx*sd*1.52,rz=qm+nz*sd*1.52;
+   put(box(.14,.2,len,0xc4c9cc,rx,ym+.14,rz),dx,dy,dz,rx,ym+.14,rz);
+   // 混凝土防撞護欄：匝道尚未離開主線淨空時，先不建立朝向主線的一側護欄。
+   const branchOffset=Math.abs(xm-(-2.25));
+   if(!(sd>0&&branchOffset<8)){
+    put(box(.34,1.12,len,0xd1d4d5,xm+nx*sd*4.0,ym+.54,qm),dx,dy,dz,xm+nx*sd*4.0,ym+.54,qm);
+    put(box(.38,.10,len,0xf0f0e8,xm+nx*sd*4.0,ym+1.12,qm),dx,dy,dz,xm+nx*sd*4.0,ym+1.12,qm);
+   }
+  }
+  // 高架匝道橋墩：固定每 72 m 設置，橋墩從地面連到橋底；低高度也不可省略。
+  if(Math.floor((q-m.from)/72)!==Math.floor((q-18-m.from)/72)){
+   const floorY=0,underside=ym-1.55,ph=underside-floorY;
+   if(ph>1.2){
+    box(2.4,.38,2.4,0x858b90,xm,floorY+.19,qm);
+    box(1.35,ph,1.35,0x9a9fa3,xm,floorY+ph/2,qm);
+    box(9.0,.72,2.25,0x8e9499,xm,underside-.05,qm);
+    box(1.7,.16,1.7,0xb9bec1,xm,underside+.34,qm);
+    box(2.8,.22,2.8,0x777e83,xm,floorY+.48,qm);
+   }
+  }
+ }
+
+ // V69：匝道告示牌。板面朝向來車，立在橋面外側，不侵入列車淨空。
+ {const out=m.x<-2.25?-1:1,arrow=out<0?'↘':'↙',cap=Math.round((m.vmax||16.7)*3.6);
+  const mkTex=(a,bb,col)=>{const c=document.createElement('canvas');c.width=512;c.height=160;const g=c.getContext('2d');g.fillStyle=col;g.fillRect(0,0,512,160);g.strokeStyle='#fff';g.lineWidth=7;g.strokeRect(7,7,498,146);g.fillStyle='#fff';g.textAlign='center';g.font='bold 52px sans-serif';g.fillText(a,256,76);g.font='bold 34px sans-serif';g.fillText(bb,256,128);const t=new THREE.CanvasTexture(c);t.anisotropy=4;return t;};
+  const signAt=(q,a,bb,col,ba,bbb)=>{const w=8.4,h=2.6,onRamp=q>m.from+40,xt=onRamp?X(q):-2.25,yt=q<=m.from?Ef(q):Y(q),px=onRamp?xt+out*4.0:out*6.3,cxs=px+out*(w/2-.3),by=yt+3.3;
+   box(.35,6.2,.35,0x8b9096,px,yt+3.1,q);box(w,.2,.2,0x8b9096,cxs,by-.15,q+.05);
+   box(w+.3,h+.3,.12,0x20252b,cxs,by+h/2,q+.09);
+   const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:mkTex(a,bb,col),fog:false}));mesh.rotation.y=Math.PI;mesh.position.set(cxs,by+h/2,q);sc.add(mesh);
+   /* V70：背面板朝向倒車回正線的駕駛員，文字不再反向 */
+   if(ba){const back=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:mkTex(ba,bbb,col),fog:false}));back.position.set(cxs,by+h/2,q+.16);sc.add(back);}};
+  signAt(m.from-1000,'前方 1.0 km 道岔',arrow+' '+m.n+'匝道','#0f5b3a');
+  signAt(m.from-70,arrow+' '+m.n+'匝道','道岔・限速 75 km/h','#0f5b3a','前方道岔・正線','退出後自動停車待命');
+  signAt(m.from+1000-80,'下坡匝道','限速 '+cap+' km/h・手動控速','#b8651b','上坡匝道','限速 '+cap+' km/h・手動控速');
+  signAt(m.z-130,m.final?'終點・入庫':'股道終點','前方停車・請煞車','#a3261e',m.final?'':'倒車回正線','上坡・限速 '+cap+' km/h');}
+}
+// V58：道岔細節。主線保持直行，支線由道岔尖軌開始逐步向外分開；加密枕木、尖軌與護欄過渡段。
+function buildTurnoutVisual(m){
+ const z0=m.from-210,z1=m.from+330,y=Ef(m.from)+.18;
+ const X=q=>-2.25+(m.x+2.25)*sm01((q-m.from)/(m.to-m.from));
+ const tangent=(q)=>{const a=X(q-2),b=X(q+2);return {dx:b-a,dz:4};};
+ const placeSeg=(w,h,d,c,x0,y0,z0,x1,y1,z1)=>{const dx=x1-x0,dy=y1-y0,dz=z1-z0,len=Math.hypot(dx,dy,dz);const o=box(w,h,len,c,(x0+x1)/2,(y0+y1)/2,(z0+z1)/2);o.rotation.order='YXZ';o.rotation.y=Math.atan2(dx,dz);o.rotation.x=-Math.atan2(dy,Math.hypot(dx,dz));return o;};
+ // 加密道岔枕木，從普通枕木逐漸加寬到尖軌區
+ for(let q=z0;q<=z1;q+=3.2){const t=Math.max(0,Math.min(1,(q-z0)/(z1-z0)));const xx=X(q);const width=4.9+1.8*Math.sin(Math.PI*t);const sl=box(width,.16,.34,0x51483f,xx,y-.04,q);const tg=tangent(q);sl.rotation.y=Math.atan2(tg.dx,tg.dz);}
+ // 兩條分岔尖軌：近道岔起點時靠近主線，之後逐步平順外移
+ for(const side of [-1,1]){
+  let px0=-2.25+side*1.53, pz0=z0;
+  for(let q=z0+5;q<=z1;q+=5){const t=Math.max(0,Math.min(1,(q-m.from)/(m.to-m.from)));const branchX=X(q)+side*1.53;const mainX=-2.25+side*1.53;const blend=sm01((q-z0)/(m.from-z0+40));const px=mainX+(branchX-mainX)*blend;placeSeg(.10,.12,Math.hypot(px-px0,5),0xbfc5c9,px0,y+.13,pz0,px,y+.13,q);px0=px;pz0=q;}
+ }
+ // 橋面側邊的反光導引線，提示駕駛員分岔方向
+ for(const side of [-1,1]){
+  let last=null;
+  for(let q=m.from-100;q<=m.to+80;q+=12){const x=X(q)+side*4.03;const pt={x,y:y+.64,z:q};if(last)placeSeg(.09,.07,Math.hypot(pt.x-last.x,pt.y-last.y,pt.z-last.z),0xf1e8c9,last.x,last.y,last.z,pt.x,pt.y,pt.z);last=pt;}
+ }
+}
+// V59：道岔機械盒、檢修走道、橋面伸縮縫與分岔警示標記。
+function buildTurnoutHardware(m){
+ const z0=m.from-24, y=Ef(m.from)+.28;
+ // 道岔轉轍機：沿道岔起點外側放置低矮金屬機箱，不侵入行車淨空。
+ for(const dz of [0,13,26]){
+  const q=m.from+dz, x=-2.25+(m.x+2.25)*sm01((q-m.from)/(m.to-m.from));
+  for(const side of [-1,1]){
+   const sx=x+side*2.55;
+   const cabinet=box(.72,.48,1.25,0x68737b,sx,y-.18,q+2);
+   box(.76,.08,1.29,0xd2b45e,sx,y+.08,q+2);
+   // 機箱短邊的檢修把手
+   box(.06,.2,.08,0x22272b,sx+side*.38,y-.18,q+2);
+  }
+ }
+ // 橋面伸縮縫：只畫在橋面表層，沿橫向跨過匝道，不做成突起障礙。
+ for(let q=m.from+54;q<m.z;q+=108){
+  const t=Math.max(0,Math.min(1,(q-m.from)/(m.to-m.from)));
+  const x=-2.25+(m.x+2.25)*sm01(t), yy=Ef(q)+.045;
+  const seam=box(7.8,.045,.16,0x626a70,x,yy,q);
+  const seam2=box(7.8,.025,.06,0xd7d9d8,x,yy+.035,q+.13);
+ }
+ // 外側維修步道：斷續窄平台，跟隨橋線曲率，避免把橋面加寬成不合理的整片平台。
+ for(let q=m.from+36;q<m.z-20;q+=36){
+  const t=Math.max(0,Math.min(1,(q-m.from)/(m.to-m.from)));
+  const x=-2.25+(m.x+2.25)*sm01(t), yy=Ef(q)-.72;
+  for(const side of [-1,1]){
+   const walk=box(.72,.16,18,0x858b8f,x+side*4.62,yy,q);
+   walk.rotation.y=Math.atan2((m.x+2.25)*(6*t*(1-t))/(m.to-m.from),1);
+   // 步道短段護邊
+   box(.08,.3,18,0xcbd0d2,x+side*4.98,yy+.19,q);
+  }
+ }
+ // 道岔警示標記與低矮號誌，使用簡單色塊確保離遠仍可辨識。
+ const sx=-2.25+(m.x+2.25)*sm01(.08);
+ box(.14,2.0,.14,0x454b50,sx+5.8,Ef(m.from)+1.0,m.from+42);
+ box(.62,.8,.18,0x252a2d,sx+5.8,Ef(m.from)+2.1,m.from+42);
+ box(.22,.22,.08,0x4caf50,sx+5.8,Ef(m.from)+2.28,m.from+41.9);
+ box(.22,.22,.08,0xf4c542,sx+5.8,Ef(m.from)+1.98,m.from+41.9);
+}
+// V62：保留 V61 分岔漸變區低矮反光標記；並修正停靠評分與靜音路徑。
+// V61：分岔漸變區的低矮反光標記，沿支線曲線逐步外移，不放在駕駛視線高度。
+function buildRampTransition(m){
+ const X=q=>-2.25+(m.x+2.25)*sm01((q-m.from)/(m.to-m.from));
+ const y=Ef(m.from)+.12;
+ for(let q=m.from-150;q<=m.from+300;q+=15){
+  const t=Math.max(0,Math.min(1,(q-m.from)/(m.to-m.from)));
+  const x=X(q),fade=sm01(t);
+  // 兩側短反光片標示橋面邊界；在分岔初段由近主線位置漸變至匝道外緣。
+  for(const side of [-1,1]){
+   const lateral=3.9+1.0*fade;
+   const marker=box(.10,.045,.42,0xd7d2b7,x+side*lateral,y,q);
+   marker.rotation.y=Math.atan2((m.x+2.25)*6*t*(1-t)/(m.to-m.from),1);
+  }
+ }
+ // 分岔區前後的橋面接縫，採窄條且貼近橋面，避免形成視覺障礙。
+ for(const q of [m.from-72,m.from-36,m.from+36,m.from+72]){
+  const t=Math.max(0,Math.min(1,(q-m.from)/(m.to-m.from)));
+  const seam=box(7.7,.025,.10,0x666d72,X(q),Ef(q)+.055,q);
+  seam.rotation.y=Math.atan2((m.x+2.25)*6*t*(1-t)/(m.to-m.from),1);
+ }
+}
+function buildEndBranch(){buildRamp(END_BR,72070);buildTurnoutVisual(END_BR);buildTurnoutHardware(END_BR);
+ box(5,1.4,.8,0xb3261e,-2.25,Ef(MAIN_END)+.8,MAIN_END+3);box(5.4,.3,1,0xffffff,-2.25,Ef(MAIN_END)+1.6,MAIN_END+3);}
+function buildMaintenanceTrack(){clearMaintenanceTrack();if(!maintenanceTarget)return;maintenanceTrackGroup=new THREE.Group();sc.add(maintenanceTrackGroup);const z0=maintenanceFromZ,z1=maintenanceTarget.z,span=z1-z0,steps=Math.max(2,Math.ceil(Math.abs(span)/90));const railMat=M(0xc4c9cc),tieMat=M(0x5b5145);for(let i=0;i<steps;i++){const q0=z0+span*i/steps,q1=z0+span*(i+1)/steps,qm=(q0+q1)/2;const x0=routeX(q0),x1=routeX(q1),xm=routeX(qm),dx=x1-x0,dz=q1-q0,len=Math.hypot(dx,dz),ey=branchY(qm);for(const side of [-1.53,1.53]){const r=box(.13,.18,len,0xc4c9cc,(x0+x1)/2,ey+.16,qm,maintenanceTrackGroup);r.rotation.y=Math.atan2(dx,dz);}const tie=box(4.8,.16,.42,0x5b5145,xm,ey-.02,qm,maintenanceTrackGroup);tie.rotation.y=Math.atan2(x1-x0,q1-q0);}}
+const stopLists={all:[1,2,3,4,5,6,7,8,9,10,11,12,13],frog:[1,3,5,7,9,11,12,13],direct:[12,13]};
+function nextTargetIndex(){const list=stopLists[serviceMode]||stopLists.all;return list.find(i=>i>idx)??ST.length-1;}
+function nxtStationName(){return ST[nextTargetIndex()]?.n||'終點站';}
+$('modeSelect').addEventListener('change',e=>{if(phase==='manual'||v>.1){e.target.value=serviceMode;say('請停車後再切換停站模式。');return;}serviceMode=e.target.value;const hints={all:'每一站都停',frog:'南港、板橋、新竹、台中、雲林、台南、左營等隔站停靠',direct:'中途不停，目的地：左營'};$('modeHint').textContent=hints[serviceMode];say(serviceMode==='direct'?'已切換直達車：下一停靠點為左營，中途不停。':'已切換：'+e.target.options[e.target.selectedIndex].text+'。下次發車生效。');});
+ function say(t){const m=$('msg');m.textContent=t;m.classList.add('on');clearTimeout(mt);mt=setTimeout(()=>m.classList.remove('on'),4500);}
+say('V66：地下段架線降低至隧道內，避免被頂板遮住；最高 320 km/h；廣播由駕駛員親自操作。');
+const head=new THREE.SpotLight(0xfff4d0,0,900,.5,.4);sc.add(head,head.target);
+function setNight(n){hemi.intensity=n?.18:.85;sun.intensity=n?.05:.7;head.intensity=n?2.2:0;say(n?'夜間模式':'日間模式');}
+function initAudio(){if(AC)return;try{AC=new (window.AudioContext||window.webkitAudioContext)();audioMaster=AC.createGain();audioMaster.gain.value=mute?0:1;audioMaster.connect(AC.destination);}catch(e){}}
+function applyMute(){const b=document.querySelector('#ops button[data-a="m"]');if(audioMaster&&AC)audioMaster.gain.setTargetAtTime(mute?0:1,AC.currentTime,.015);if(mute){try{if('speechSynthesis'in window)speechSynthesis.cancel();}catch(e){}if(playingAnnounce){playingAnnounce.pause();playingAnnounce.currentTime=0;}if(typeof paOn!=='undefined'&&paOn)paStop();}if(b)b.textContent=mute?'🔇 解除靜音 M':'🔊 靜音 M';say(mute?'已靜音：提示音、鳴笛、話筒與錄音播放都已停止。':'已解除靜音。');}
+// V26：移除持續播放的合成行駛音（可能被聽成噴氣聲）；只保留按鍵鳴笛與提示音。
+// V27：使用者親自錄製自己的聲音，完全不自動生成／播放系統廣播。
+let announceRecorder=null,announceChunks=[],announceBlob=null,announceUrl=null,announceStream=null;
+const recordBtn=$('recordAnnounce'),stopBtn=$('stopAnnounce'),playBtn=$('playAnnounce'),recordStatus=$('recordStatus');
+recordBtn.addEventListener('click',async()=>{
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){recordStatus.textContent='此瀏覽器無法錄音。請使用最新版 Chrome，並允許麥克風權限。';say('無法啟動麥克風，請確認瀏覽器權限。');return;}
+ try{announceStream=await navigator.mediaDevices.getUserMedia({audio:true});announceChunks=[];announceRecorder=new MediaRecorder(announceStream);announceRecorder.ondataavailable=e=>{if(e.data&&e.data.size)announceChunks.push(e.data);};announceRecorder.onstop=()=>{announceBlob=new Blob(announceChunks,{type:announceRecorder.mimeType||'audio/webm'});if(announceUrl)URL.revokeObjectURL(announceUrl);announceUrl=URL.createObjectURL(announceBlob);playBtn.disabled=false;recordStatus.textContent='錄音完成！按「播放我的廣播錄音」即可播放你的原聲。';if(announceStream)announceStream.getTracks().forEach(t=>t.stop());};announceRecorder.start();recordBtn.disabled=true;stopBtn.disabled=false;playBtn.disabled=true;recordStatus.textContent='🔴 正在錄音：請對著麥克風說出你的廣播。';say('開始錄製你的廣播。');}
+ catch(err){recordStatus.textContent='無法使用麥克風，請允許網站使用麥克風後再試。';say('麥克風權限未開啟或無法使用。');}
+});
+stopBtn.addEventListener('click',()=>{if(announceRecorder&&announceRecorder.state==='recording'){announceRecorder.stop();recordBtn.disabled=false;stopBtn.disabled=true;say('已停止錄音。');}});
+playBtn.addEventListener('click',()=>{if(!announceUrl)return;if(mute){recordStatus.textContent='目前已靜音，請先按 M 解除靜音。';return;}if(playingAnnounce){playingAnnounce.pause();playingAnnounce.currentTime=0;}const a=new Audio(announceUrl);playingAnnounce=a;a.muted=mute;a.play().then(()=>say('正在播放你的廣播錄音。')).catch(()=>{recordStatus.textContent='播放失敗，請確認瀏覽器音效沒有靜音。';});});
+function paChime(c,dst,up){[[up?659.25:523.25,0],[up?523.25:659.25,.45]].forEach(a=>{const o=c.createOscillator(),g=c.createGain(),t=c.currentTime+a[1];o.type='sine';o.frequency.value=a[0];g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.25,t+.03);g.gain.exponentialRampToValueAtTime(.001,t+.6);o.connect(g);g.connect(dst);o.start(t);o.stop(t+.65);});}
+let paOn=false,paBusy=false,paStream=null,paCtx=null,paGain=null,paVol=1,paTimer=null,ptt=false,pttCancel=false;
+function paImpulse(c){const len=Math.floor(c.sampleRate*1.4),b=c.createBuffer(2,len,c.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3);}return b;}
+function paUI(){const h=$('hs');h.classList.toggle('on',paOn);h.querySelector('b').textContent=paOn?'廣播中':'話筒';$('paBar').style.display=paOn?'block':'none';if(!paOn){$('paLv').style.width='0';$('paWarn').textContent='';}}
+function paStop(){paOn=false;clearInterval(paTimer);paTimer=null;const c=paCtx,st=paStream;paGain=null;if(st)st.getTracks().forEach(t=>t.stop());if(c){try{paChime(c,c.destination,false);}catch(e){}setTimeout(()=>{try{c.close();}catch(e){}},1300);}paCtx=paStream=null;paUI();say('已掛上話筒。');}
+async function paToggle(){if(paBusy)return;
+ if(paOn){paStop();return;}
+ if(mute){say('已靜音，無法廣播（按 M 解除靜音）。');return;}
+ if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){say('此瀏覽器無法使用麥克風。');return;}
+ paBusy=true;
+ try{const st=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}}),c=new(window.AudioContext||window.webkitAudioContext)();await c.resume();
+  const src=c.createMediaStreamSource(st),hp=c.createBiquadFilter(),pk=c.createBiquadFilter(),lp=c.createBiquadFilter(),cp=c.createDynamicsCompressor(),gate=c.createGain(),dry=c.createGain(),conv=c.createConvolver(),wet=c.createGain(),vol=c.createGain(),lim=c.createDynamicsCompressor(),an=c.createAnalyser();
+  hp.type='highpass';hp.frequency.value=300;hp.Q.value=.7;pk.type='peaking';pk.frequency.value=2600;pk.Q.value=1;pk.gain.value=5;lp.type='lowpass';lp.frequency.value=4200;
+  cp.threshold.value=-28;cp.knee.value=12;cp.ratio.value=5;cp.attack.value=.004;cp.release.value=.2;
+  lim.threshold.value=-3;lim.knee.value=0;lim.ratio.value=20;lim.attack.value=.001;lim.release.value=.05;
+  conv.buffer=paImpulse(c);dry.gain.value=.85;wet.gain.value=.16;vol.gain.value=paVol*1.1;an.fftSize=1024;
+  src.connect(hp);hp.connect(pk);pk.connect(lp);lp.connect(cp);cp.connect(an);cp.connect(gate);gate.connect(dry);dry.connect(vol);gate.connect(conv);conv.connect(wet);wet.connect(vol);vol.connect(lim);lim.connect(c.destination);
+  paChime(c,c.destination,true);
+  paStream=st;paCtx=c;paGain=vol;paOn=true;paUI();
+  const buf=new Float32Array(an.fftSize);let hold=0,loud=0;
+  paTimer=setInterval(()=>{if(!paCtx)return;an.getFloatTimeDomainData(buf);let sum=0;for(let i=0;i<buf.length;i++)sum+=buf[i]*buf[i];const rms=Math.sqrt(sum/buf.length),now=c.currentTime;
+   // 噪音閘門：沒說話時自動壓低，減少底噪與回授
+   if(rms>.012)hold=now+.35;const open=now<hold;gate.gain.setTargetAtTime(open?1:.06,now,open?.01:.15);
+   $('paLv').style.width=Math.min(100,rms*500)+'%';
+   // 回授保護：持續過大聲就自動降音量
+   if(rms>.3){loud+=50;if(loud>=1500){loud=0;paVol=Math.max(.2,paVol*.7);$('paVol').value=Math.round(paVol*100);$('paWarn').textContent='⚠ 偵測到嘯叫（喇叭聲被麥克風收到），已自動降低音量，建議戴耳機';}}else loud=Math.max(0,loud-100);
+  },50);
+  say('📢 話筒已拿起，請直接說話。再按 B 或點話筒掛上（也可按住 T 說話、放開即掛上）。');
+ }catch(e){say('麥克風權限未開啟或無法使用。');}
+ paBusy=false;
+ if(pttCancel){pttCancel=false;ptt=false;if(paOn)paStop();}}
+function pttDown(){if(paOn||paBusy)return;ptt=true;pttCancel=false;paToggle();}
+function pttUp(){if(!ptt)return;if(paBusy){pttCancel=true;return;}ptt=false;if(paOn)paStop();}
+$('paVol').addEventListener('input',e=>{paVol=e.target.value/100;if(paGain&&!mute)paGain.gain.value=paVol*1.1;});$('paVol').addEventListener('change',e=>e.target.blur());
+$('hs').addEventListener('click',paToggle);setInterval(()=>{if(paGain)paGain.gain.value=mute?0:paVol*1.1;if(AC&&audioMaster)audioMaster.gain.setTargetAtTime(mute?0:(paOn?.35:1),AC.currentTime,.12);},300);
+function beep(fr,d){if(!AC||mute)return;const o=AC.createOscillator(),g=AC.createGain();o.frequency.value=fr;g.gain.value=.12;o.connect(g);g.connect(audioMaster||AC.destination);o.start();o.stop(AC.currentTime+d);}
+function horn(){initAudio();if(!AC||mute){say('鳴笛已按下；目前音效為靜音，按 M 解除靜音。');return;}try{if(AC.state==='suspended')AC.resume();const now=AC.currentTime;[392,523].forEach((freq,i)=>{const o=AC.createOscillator(),g=AC.createGain(),f=AC.createBiquadFilter();o.type='sawtooth';o.frequency.value=freq;f.type='lowpass';f.frequency.value=1200;g.gain.setValueAtTime(0,now);g.gain.linearRampToValueAtTime(.11,now+.08);g.gain.setValueAtTime(.11,now+1.05);g.gain.linearRampToValueAtTime(0,now+1.25);o.connect(f);f.connect(g);g.connect(audioMaster||AC.destination);o.start(now);o.stop(now+1.28);});say('列車鳴笛！');}catch(e){say('鳴笛音效無法播放，請確認瀏覽器音效已開啟。');}}
+function act(k,strict){initAudio();if(k==='b'){paToggle();return;}if(k==='t'){pttDown();return;}if(k==='c'&&!doorOpen){if(strict){say('車門已經關閉。');return;}k='o';}if(k==='v'){document.body.classList.toggle('clear');return;}if(k==='h'){horn();return;}if(k==='n'){night=!night;setNight(night);}if(k==='m'){mute=!mute;applyMute();return;}if(k==='o'||k==='c')beep(880,.25);
+ if(k==='o'&&v<.1&&(phase==='dwell')&&!doorOpen&&idx>0){const al=Math.abs(z-ST[idx].z)<=15;doorOpen=true;boardT=al?3:0;boarded=!al;say(al?'車門開啟，乘客上下車中。':'車門開啟（未對準月台，無乘客上下車）。');}
+ if(k==='c'&&doorOpen){if(boardT>0&&platW[1]>0)say('乘客上下車中（右側尚有 '+platW[1]+' 人），請稍候。');else{boardT=0;boarded=true;doorOpen=false;say('車門已關閉。');}}
+ if(k==='e'&&phase==='dwell'){if(doorOpen)return say('請先關門。');if(idx>0&&!boarded)return say('請先開門讓乘客上下車。');
+  if(idx===ST.length-2){maintenanceTarget=END_BR;maintenanceFromZ=END_BR.from;maintenanceReturn=false;phase='diverting';boarded=false;doorOpen=false;keys.w=keys.b=keys.s=0;say('出發入庫：正線已到終點，列車將經道岔轉入左營基地股道，請稍候。');return;}
+  phase='manual';boarded=false;warned=false;pen=0;lev=0;say(idx===0?'出庫！限速 45 km/h，W 加速。':'發車！W 加速，進站前請提早煞車。');
+  // V27：不自動播報，廣播由駕駛員自行錄製並播放。
+ }}
+function startCabChange(mode){cabMode=mode;cabT=0;cabFlip=false;v=0;doorOpen=false;keys.w=keys.b=keys.s=0;phase='cabchange';$('fade').style.opacity=1;say('駕駛員走向列車另一端的駕駛室…');}
+function hideIncident(){ $('incident').style.display='none';incidentPending=false;}
+const BASES=[{n:'六家基地',bz:12000},{n:'烏日基地',bz:32000},{n:'太保基地',bz:50900}].map(b=>({n:b.n,from:b.bz-1300,to:b.bz-300,zd:b.bz-100,z:b.bz+200,x:-28,vmax:16.7}));BASES.forEach(b=>{buildRamp(b,b.z+70);buildTurnoutVisual(b);});let pendingBase=null;
+function nextBaseAhead(){return BASES.find(b=>b.from-z>1500)||null;}
+$('goDepot').addEventListener('click',()=>{if(!incidentPending)return;tlog('choice',{c:'depot'});const b=nextBaseAhead();hideIncident();if(!b){say('前方已無可轉入的基地，請繼續行駛。');slowUntil=z+3000;incidentDone=true;return;}pendingBase=b;incidentDone=true;say(`已通報${b.n}：請繼續沿正線行駛，約 ${((b.from-z)/1000).toFixed(1)} km 後到道岔，過岔限速 75 km/h，列車會自動轉入。`);});
+$('continueRun').addEventListener('click',()=>{tlog('choice',{c:'continue'});if(maintenanceReturn){hideIncident();startCabChange(phase==='clear'?'resume':'returning');return;}if(!incidentPending)return;hideIncident();phase='manual';slowUntil=z+3000;incidentDone=true;say('已選擇繼續行駛；接下來 3 km 限速 160 km/h。');});
+const kk=e=>{const c=e.code||'';if(c==='Space')return ' ';if(c==='ArrowUp')return 'arrowup';if(c==='ArrowDown')return 'arrowdown';if(c.startsWith('Key'))return c.slice(3).toLowerCase();return (e.key||'').toLowerCase();};
+const editableTarget=e=>{const t=e.target;if(!t)return false;if(t.isContentEditable||t.tagName==='TEXTAREA')return true;if(t.tagName==='INPUT'){const ty=(t.type||'text').toLowerCase();return!['range','checkbox','radio','button','file','submit'].includes(ty);}return false;};const grabFocus=()=>{try{window.focus();if(document.activeElement&&document.activeElement.tagName==='BUTTON')document.activeElement.blur();}catch(_){}};
+addEventListener('blur',()=>{keys.w=keys.b=keys.s=keys.a=keys.d=0;});
+addEventListener('keydown',e=>{if(editableTarget(e))return;unlockSpeech();const k=kk(e);if(['w','arrowup',' ','arrowdown'].includes(k))e.preventDefault();initAudio();if(k==='h'){if(!e.repeat)horn();return;}if(k==='w'||k==='arrowup'){keys.w=1;return;}if(k==='s'){keys.s=1;return;}if(k==='a'){keys.a=1;return;}if(k==='d'){keys.d=1;return;}if(k===' '||k==='arrowdown'){keys.b=1;return;}if(!e.repeat)act(k);},true);
+addEventListener('keyup',e=>{const k=kk(e);if(k==='t')pttUp();if(k==='w'||k==='arrowup')keys.w=0;if(k===' '||k==='arrowdown')keys.b=0;if(k==='s')keys.s=0;if(k==='a')keys.a=0;if(k==='d')keys.d=0;},true);addEventListener('pointerdown',grabFocus,true);try{document.body.tabIndex=-1;window.focus();}catch(_){}
+document.querySelectorAll('#ops button,#dpan button').forEach(b=>{b.addEventListener('pointerdown',e=>{unlockSpeech();e.preventDefault();if(b.dataset.h){keys[b.dataset.h]=1;if(b.setPointerCapture)try{b.setPointerCapture(e.pointerId)}catch(_){}}else act(b.dataset.a,true);});['pointerup','pointerleave','pointercancel','lostpointercapture'].forEach(ev=>b.addEventListener(ev,()=>{if(b.dataset.h)keys[b.dataset.h]=0;}));});
+addEventListener('pointerup',()=>{keys.w=0;keys.b=0;});
+const trk=document.querySelector('#dash .trk');let drag=false;
+function setLev(e){const r=trk.getBoundingClientRect();let p=Math.max(0,Math.min(1,(e.clientY-r.top-8)/(r.height-16)));let l=1-2*p;lev=Math.abs(l)<.08?0:l>0?Math.ceil(l*5)/5:-Math.ceil(-l*7)/7;}
+trk.addEventListener('pointerdown',e=>{unlockSpeech();e.preventDefault();drag=true;trk.setPointerCapture(e.pointerId);initAudio();setLev(e);});
+trk.addEventListener('pointermove',e=>{if(drag)setLev(e);});['pointerup','pointercancel'].forEach(ev=>trk.addEventListener(ev,()=>{drag=false;}));
+// ---- 儀表 ----
+const gx=$('g').getContext('2d'),vg=$('vc').getContext('2d');
+function gauge(kmh,lim){const C=100,R0=82,a0=125*Math.PI/180,sw=290*Math.PI/180,MX=CFG.drive.max,ang=k=>a0+sw*Math.min(k,MX)/MX,P=(a,r)=>[C+Math.cos(a)*r,C+Math.sin(a)*r];gx.clearRect(0,0,200,200);
+ gx.lineCap='round';gx.lineWidth=9;gx.strokeStyle='#14225a';gx.beginPath();gx.arc(C,C,R0,a0,a0+sw);gx.stroke();
+ gx.strokeStyle=(lim&&kmh>lim+5)?'#ff5252':'#3d8bff';if(kmh>.5){gx.beginPath();gx.arc(C,C,R0,a0,ang(kmh));gx.stroke();}
+ gx.lineCap='butt';for(let k=0;k<=MX;k+=10){const m=k%50===0,a=ang(k);gx.strokeStyle=m?'#dfe9ff':'#6f86c4';gx.lineWidth=m?2:1;gx.beginPath();gx.moveTo(...P(a,R0-8));gx.lineTo(...P(a,R0-(m?20:14)));gx.stroke();}
+ gx.fillStyle='#cfe0ff';gx.font='12px sans-serif';gx.textAlign='center';for(let k=0;k<=MX;k+=50){const p=P(ang(k),R0-32);gx.fillText(k,p[0],p[1]+4);}
+ if(lim){const a=ang(lim);gx.strokeStyle='#fff';gx.lineWidth=3;gx.beginPath();gx.moveTo(...P(a,R0-6));gx.lineTo(...P(a,R0+8));gx.stroke();}
+ gx.fillStyle='#fff';gx.font='bold 44px sans-serif';gx.fillText(Math.round(kmh),C,C+14);gx.font='14px sans-serif';gx.fillStyle='#cfe0ff';gx.fillText('km/h',C,C+36);}
+function vbar(){const H=360,n=ST.length,gap=(H-30)/(n-1),Y=i=>H-15-i*gap;vg.clearRect(0,0,96,H);
+ for(let i=0;i<n-1;i++)for(let k=0;k<12;k++){const q=ST[i].z+(ST[i+1].z-ST[i].z)*(k+.5)/12,E=Ef(q);vg.fillStyle=inMT(q)?'#c28a3a':E<-5?'#7a5ae0':E>6?'#4aa3ff':'#5fcf72';vg.fillRect(30,Y(i+(k+1)/12),6,gap/12+.6);}
+ vg.font='11px sans-serif';ST.forEach((S,i)=>{vg.fillStyle='#dfe8ff';vg.fillRect(26,Y(i)-1,14,2);vg.textAlign='left';vg.fillText(S.n,43,Y(i)+4);});
+ let pi=0;while(pi<n-2&&z>=ST[pi+1].z)pi++;const f=Math.max(0,Math.min(1,(z-ST[pi].z)/(ST[pi+1].z-ST[pi].z))),ty=Y(pi+f);
+ vg.fillStyle='#fff';vg.strokeStyle='#ff8a1f';vg.lineWidth=2;vg.beginPath();vg.moveTo(24,ty);vg.lineTo(14,ty-6);vg.lineTo(14,ty+6);vg.closePath();vg.fill();vg.stroke();}
+
+// ---- V71：災害／突發事件（地震、颱風、人員臥軌）----
+const ev={type:null,auto:true,cool:40,t:0,hold:0,cut:false,ebk:0,lim:0,stat:'',cl:'warn',storm:0,wind:0,windS:0,base:20,lvl:1,gust:0,gT:6,quakeI:4,shake:0,pz:0,hit:false,beep:0,alt:false,endZ:0,af:false,wt:0,bf:1,tf:1,stormT:0,dark:0,darkT:0,pend:null,nextT:0,tries:0,cn:0,chainN:0,chainQ:[],diff:1,cnt:0};
+const STORMC=new THREE.Color(0x4a5560);
+const evb=$('evb'),evf=$('evflash');let evbTxt='',evbCl='';
+function evBanner(t,cl){if(t&&ev.chainN>1)t='<small>⛓ 連鎖事故 '+ev.cn+'/'+ev.chainN+'</small><br>'+t;if(!t){if(evbTxt){evb.style.display='none';evbTxt='';}return;}if(evb.style.display!=='block')evb.style.display='block';if(t!==evbTxt){evb.innerHTML=t;evbTxt=t;}if(cl!==evbCl){evb.className='p '+cl;evbCl=cl;}}
+// 雨絲
+const RN=1400,rainPos=new Float32Array(RN*6),rainSd=new Float32Array(RN*3);
+for(let i=0;i<RN;i++){rainSd[i*3]=(Math.random()-.5)*44;rainSd[i*3+1]=Math.random()*26;rainSd[i*3+2]=-15+Math.random()*110;}
+const rainGeo=new THREE.BufferGeometry();rainGeo.setAttribute('position',new THREE.BufferAttribute(rainPos,3));
+const rain=new THREE.LineSegments(rainGeo,new THREE.LineBasicMaterial({color:0xd0e6ff,transparent:true,opacity:.5,depthWrite:false}));rain.frustumCulled=false;rain.visible=false;sc.add(rain);
+function rainUpdate(dt,k){rain.visible=k>.03;if(!rain.visible)return;rain.material.opacity=.15+.4*k;
+ const fall=38*dt,back=Math.min(v,90)*dt*TIME_SCALE*.35,drift=ev.windS*.05*dt*3,cx=cam.position.x,cy=cam.position.y-6,cz=cam.position.z,sl=ev.windS*.03,tl=.6+v*.04;
+ for(let i=0;i<RN;i++){let x=rainSd[i*3]+drift,y=rainSd[i*3+1]-fall,zz=rainSd[i*3+2]-back;if(y<0)y+=26;if(zz<-15)zz+=110;if(x>22)x-=44;rainSd[i*3]=x;rainSd[i*3+1]=y;rainSd[i*3+2]=zz;
+  const o=i*6;rainPos[o]=cx+x;rainPos[o+1]=cy+y;rainPos[o+2]=cz+zz;rainPos[o+3]=cx+x+sl;rainPos[o+4]=cy+y+1.5;rainPos[o+5]=cz+zz+tl;}
+ rainGeo.attributes.position.needsUpdate=true;}
+// 臥軌人員
+function mkPerson(){const g=new THREE.Group(),a=new THREE.MeshLambertMaterial({color:0x2a5fa8}),b=new THREE.MeshLambertMaterial({color:0x2b2b33}),c=new THREE.MeshLambertMaterial({color:0xe0b08c});
+ const t=new THREE.Mesh(new THREE.BoxGeometry(.95,.22,.45),a);t.position.set(0,.2,0);const h=new THREE.Mesh(new THREE.SphereGeometry(.14,10,8),c);h.position.set(.62,.22,0);const l=new THREE.Mesh(new THREE.BoxGeometry(.85,.18,.3),b);l.position.set(-.9,.18,0);
+ const bc=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,36,6),new THREE.MeshBasicMaterial({color:0xff2a2a,fog:false,transparent:true,opacity:.85}));bc.position.y=18;
+ g.add(t,h,l,bc);g.userData.bc=bc;g.visible=false;return g;}
+const person=mkPerson();sc.add(person);
+// ================= V72：新增事件（號誌故障／停電／設備故障／異物侵入／豪雨淹水／邊坡落石／多事件連鎖）=================
+const EXT=['signal','power','equip','intrude','flood','rock'];
+const EXNAME={quake:'地震',typhoon:'颱風',person:'人員臥軌',signal:'號誌故障',power:'停電',equip:'設備故障',intrude:'異物侵入',flood:'豪雨淹水',rock:'邊坡落石',chain:'連鎖事故'};
+const RISK=[
+ {n:'標準營運日',d:'各類事件機率均等',w:{}},
+ {n:'梅雨鋒面',d:'豪雨淹水、邊坡落石、號誌故障機率提高',w:{flood:3,rock:3,signal:2,typhoon:1.5}},
+ {n:'颱風警報',d:'颱風、停電、淹水與連鎖事故機率提高',w:{typhoon:3,power:2.5,flood:2,chain:2.5}},
+ {n:'地震活躍期',d:'地震、落石與連鎖事故機率提高',w:{quake:3,rock:2,chain:2.5,power:1.5}},
+ {n:'設備老化週',d:'設備故障、號誌故障、停電機率提高',w:{equip:3,signal:3,power:2}},
+ {n:'軌道巡檢缺口',d:'異物侵入與臥軌機率提高',w:{intrude:3.5,person:2.5}}
+];
+const CHAINS=[
+ {n:'強震後連鎖',s:['quake','power','rock']},
+ {n:'豪雨連鎖',s:['flood','signal','intrude']},
+ {n:'邊坡災害連鎖',s:['rock','intrude','signal']},
+ {n:'供電故障連鎖',s:['power','signal','equip']},
+ {n:'設備老化連鎖',s:['equip','signal','intrude']},
+ {n:'颱風豪雨連鎖',s:['flood','rock','power']}
+];
+let scn=RISK[Math.floor(Math.random()*RISK.length)],X={};
+const cas=()=>ev.chainN>1?ev.cn:0,rd=()=>Math.random();
+function exScn(){const e=$('evScn');if(e)e.innerHTML='🎲 本次任務情境：<b>'+scn.n+'</b><br>'+scn.d;}
+function exLog(type){tlog('start',{type,chain:ev.chainN||0});ev.cnt=(ev.cnt||0)+1;(ev.hist=ev.hist||[]).push(EXNAME[type]||type);if(ev.hist.length>5)ev.hist.shift();const e=$('evLog');if(e)e.textContent='本任務已發生 '+ev.cnt+' 次事件：'+ev.hist.join(' → ');}
+function exPick(){const base={},k=[];let tot=0;Object.keys(CFG.ev).forEach(n=>{const c=CFG.ev[n];if(!c.on)return;base[n]=Math.max(0,c.w*(n==='chain'?(CFG.chainW[ev.diff]??1):1))*(scn.w[n]||1);k.push(n);tot+=base[n];});if(!k.length)return null;let r=rd()*tot;for(const n of k){r-=base[n];if(r<=0)return n;}return k[k.length-1];}
+function exPendTick(dt){if(!ev.pend)return;if(phase!=='manual'||incidentPending||pendingBase)return;ev.nextT-=dt;if(ev.nextT>0)return;const p=ev.pend;if(evStart(p,true)){ev.pend=null;ev.cn++;}else{ev.nextT=5;if(++ev.tries>6){ev.pend=null;ev.chainQ=[];ev.chainN=0;ev.cn=0;say('連鎖事故危機解除，前方恢復正常。');}}}
+const exMat=c=>new THREE.MeshLambertMaterial({color:c});
+const exOut=zz=>!inMT(zz-200)&&!inMT(zz)&&!inMT(zz+300)&&Ef(zz)>-1;
+// V73：整段區間都在戶外（非隧道、非地下段）
+const exSpan=(a,b)=>{for(let q=a;q<=b;q+=100)if(!exOut(q))return false;return exOut(b);};
+// V73：在列車前方 [minD,maxD] 公尺內找一個整段都在戶外的位置；找不到回傳 -1。隧道與地下段以外的路段都可能被選中。
+function exSpot(minD,maxD,len,lim){const c=[],hi=Math.min(maxD,lim-len);for(let s=minD;s<=hi;s+=50)if(exSpan(z+s,z+s+len))c.push(s);if(!c.length)return -1;return c[Math.min(c.length-1,Math.floor(rd()*Math.min(c.length,30)))];}
+// V73：落石只發生在隧道入口／出口、地下段入口／出口（o=-1：開口在較小里程側；o=1：開口在較大里程側）
+const PORTALS=(()=>{const a=[];let u0=null,u1=null;for(let q=-1500;q<=6000;q+=5){if(Ef(q)<-5){if(u0===null)u0=q;u1=q;}}
+if(u0!==null)a.push({z:u0,o:-1,n:'地下段入口'},{z:u1,o:1,n:'地下段出口'});
+MT.forEach(m=>{a.push({z:m[0],o:-1,n:'隧道入口'},{z:m[1],o:1,n:'隧道出口'});});
+return a.sort((x,y)=>x.z-y.z);})();
+// --- 號誌門架 ---
+function mkGantry(){const g=new THREE.Group(),pm=exMat(0x59606a);
+ [-4.7,.2].forEach(x=>{const p=new THREE.Mesh(new THREE.BoxGeometry(.28,7,.28),pm);p.position.set(x,3.5,0);g.add(p);});
+ const bm=new THREE.Mesh(new THREE.BoxGeometry(5.3,.28,.28),pm);bm.position.set(-2.25,7,0);g.add(bm);
+ const bd=new THREE.Mesh(new THREE.BoxGeometry(1,2.3,.25),exMat(0x15181d));bd.position.set(-2.25,5.7,.05);g.add(bd);
+ const lamps=[6.45,5.7,4.95].map(y=>{const l=new THREE.Mesh(new THREE.SphereGeometry(.34,12,10),new THREE.MeshBasicMaterial({color:0x222222,fog:false}));l.position.set(-2.25,y,-.2);g.add(l);return l;});
+ const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),gr=x.createRadialGradient(32,32,0,32,32,32);gr.addColorStop(0,'rgba(255,255,255,1)');gr.addColorStop(.3,'rgba(255,255,255,.45)');gr.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=gr;x.fillRect(0,0,64,64);
+ const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),fog:false,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));glow.scale.set(14,14,1);glow.position.set(-2.25,6.45,-.4);g.add(glow);
+ g.userData={lamps,glow};g.visible=false;sc.add(g);return g;}
+const gantry=mkGantry();
+function sigSet(m){const L=gantry.userData.lamps,gl=gantry.userData.glow,off=0x222222;L.forEach(l=>l.material.color.setHex(off));gl.visible=true;
+ if(m==='red'){L[0].material.color.setHex(0xff2020);gl.material.color.setHex(0xff2020);}
+ else if(m==='flash'){const on=Math.floor(t0*2.5)%2===0;if(on){L[1].material.color.setHex(0xffc400);gl.material.color.setHex(0xffc400);}else gl.visible=false;}
+ else gl.visible=false;}
+// --- 異物（鐵皮／倒樹／動物／墜落車輛）---
+function exBeacon(g){const b=new THREE.Mesh(new THREE.CylinderGeometry(.12,.12,36,6),new THREE.MeshBasicMaterial({color:0xff2a2a,fog:false,transparent:true,opacity:.85}));b.position.set(-2.25,18,0);g.add(b);g.userData.bc=b;}
+function mkObs(sub){const g=new THREE.Group(),m=exMat,rr=()=>Math.random()-.5;
+ if(sub==='debris'){for(let i=0;i<6;i++){const s=new THREE.Mesh(new THREE.BoxGeometry(1.6+Math.random()*1.4,.08,.9+Math.random()*.8),m(i%2?0x9aa3ab:0x7e8890));s.position.set(-2.25+rr()*3.2,.2+i*.06,rr()*2.4);s.rotation.set(rr()*.5,Math.random()*3,rr()*.4);g.add(s);}
+  for(let i=0;i<3;i++){const p=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,3.6,6),m(0xb08040));p.position.set(-2.25+rr()*2.5,.5,rr()*2);p.rotation.set(rr()*.4,rr()*3,1.3+rr()*.3);g.add(p);}}
+ else if(sub==='tree'){const tr=new THREE.Mesh(new THREE.CylinderGeometry(.32,.42,7.8,8),m(0x5a4030));tr.rotation.z=Math.PI/2;tr.position.set(-2.25,.55,0);g.add(tr);
+  [[-5.4,1.2,1.7],[-.2,1,1.2],[-4,1.6,1.3]].forEach(a=>{const f=new THREE.Mesh(new THREE.SphereGeometry(a[2],10,8),m(0x2f6b34));f.position.set(a[0]+0,a[1],rr()*.8);g.add(f);});}
+ else if(sub==='animal'){const b=new THREE.Mesh(new THREE.BoxGeometry(2.3,1.05,1.05),m(0x6b4a2f));b.position.set(-2.25,1.3,0);g.add(b);
+  const p=new THREE.Mesh(new THREE.BoxGeometry(.9,.6,.9),m(0xf0ece4));p.position.set(-2.6,1.55,0);g.add(p);
+  const h=new THREE.Mesh(new THREE.BoxGeometry(.65,.6,.55),m(0x5a3d26));h.position.set(-3.65,1.55,0);g.add(h);
+  [[-3.1,.4],[-3.1,-.4],[-1.4,.4],[-1.4,-.4]].forEach(a=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.2,.85,.2),m(0x4a3220));l.position.set(a[0],.45,a[1]);g.add(l);});}
+ else{const c=new THREE.Group();const b=new THREE.Mesh(new THREE.BoxGeometry(2,.8,4.3),m(0xc0392b));b.position.y=.7;c.add(b);const t=new THREE.Mesh(new THREE.BoxGeometry(1.7,.7,2.2),m(0x8fb7d6));t.position.set(0,1.4,-.2);c.add(t);
+  [[-1,1.4],[1,1.4],[-1,-1.4],[1,-1.4]].forEach(a=>{const w=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.3,10),m(0x151515));w.rotation.z=Math.PI/2;w.position.set(a[0],.38,a[1]);c.add(w);});
+  c.position.set(-2.25,.15,0);c.rotation.set(.12,.5,.35);g.add(c);}
+ exBeacon(g);g.visible=false;sc.add(g);return g;}
+const obsG={};['debris','tree','animal','car'].forEach(s=>obsG[s]=mkObs(s));
+// --- 邊坡與落石 ---
+const slopeG=new THREE.Group();{const s=new THREE.Mesh(new THREE.BoxGeometry(18,.6,60),exMat(0x6f6a4c));s.rotation.z=-.62;s.position.set(-14,4.3,0);slopeG.add(s);const sc2=new THREE.Mesh(new THREE.BoxGeometry(7,.7,22),exMat(0x8a7456));sc2.rotation.z=-.62;sc2.position.set(-17,6.6,0);slopeG.add(sc2);}
+slopeG.visible=false;sc.add(slopeG);
+const rockG=new THREE.Group(),rocks=[];for(let i=0;i<10;i++){const r=new THREE.Mesh(new THREE.DodecahedronGeometry(1,0),exMat(i%3?0x7b746b:0x5f5a54));rockG.add(r);rocks.push(r);}rockG.visible=false;sc.add(rockG);
+function rockInit(big){rocks.forEach((r,i)=>{const on=i<(big?10:5);r.visible=on;const s=big?1+Math.random()*1.3:.45+Math.random()*.55;r.scale.set(s,s*(.7+Math.random()*.5),s);const xs=-17+Math.random()*7;r.userData={xs,ys:4.3-.7*(xs+14)+1,zs:(Math.random()-.5)*12,xe:-2.25+(Math.random()-.5)*3.2,ze:(Math.random()-.5)*9,ye:s*.6,dl:i*.17,T:1.5+Math.random()*.7,sp:(Math.random()-.5)*6};});}
+function rockAnim(ft){let landed=true;rocks.forEach(r=>{const o=r.userData;if(!r.visible)return;const u=Math.max(0,Math.min(1,(ft-o.dl)/o.T));if(u<1)landed=false;const e=u*u;r.position.set(o.xs+(o.xe-o.xs)*e,o.ys+(o.ye-o.ys)*e+Math.abs(Math.sin(u*Math.PI*3))*.9*(1-u)*(u>0?1:0),o.zs+(o.ze-o.zs)*e);r.rotation.x=u*o.sp;r.rotation.z=u*o.sp*.7;});return landed;}
+// --- 積水 ---
+const waterM=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0x4d7f9e,transparent:true,opacity:.62,depthWrite:false}));waterM.rotation.x=-Math.PI/2;waterM.visible=false;sc.add(waterM);
+function exClear(){X={};gantry.visible=false;for(const k in obsG)obsG[k].visible=false;slopeG.visible=false;rockG.visible=false;waterM.visible=false;noseRestore();}
+// ---- V73：撞到異物時車頭脫落 ----
+const noseS={on:false,rest:false,bn:0,vx:0,vy:0,vz:0,wx:0,wy:0,wz:0};
+function noseDrop(){const dg=PT.noseDeb;if(!dg||noseS.on)return;const v0=v;const dS=dirS,bz=z+dS;
+PT.noseParts.forEach(o=>{o.visible=false;});PT.noseBulk.visible=true;
+dg.position.set(routeX(bz),Et(bz)-.5,bz);dg.rotation.set(0,dS<0?Math.PI:0,0);dg.visible=true;
+Object.assign(noseS,{on:true,rest:false,bn:0,vx:(Math.random()-.5)*4,vy:9+Math.random()*4,vz:dS*(v*TIME_SCALE*1.1+8),wx:-(2+Math.random()*3),wy:(Math.random()-.5)*3,wz:(Math.random()-.5)*5});
+ev.shake=Math.max(ev.shake,1.8);evf.style.opacity=.9;setTimeout(()=>{evf.style.opacity=0;},260);
+say('💥 車頭撞毀脫落！車頭前端斷裂飛出，請等待檢查。');beep(90,.5);blkWreck(v0*3.6);}
+function noseRestore(){if(BLK.over)return;const dg=PT.noseDeb;noseS.on=false;if(!dg)return;dg.visible=false;PT.noseBulk.visible=false;PT.noseParts.forEach(o=>{o.visible=true;});}
+function noseTick(dt){if(!noseS.on||noseS.rest)return;const dg=PT.noseDeb,p=dg.position;
+noseS.vy-=26*dt;p.x+=noseS.vx*dt;p.y+=noseS.vy*dt;p.z+=noseS.vz*dt;
+dg.rotation.x+=noseS.wx*dt;dg.rotation.y+=noseS.wy*dt;dg.rotation.z+=noseS.wz*dt;
+const fl=Et(p.z)-.5+.9;
+if(p.y<fl){p.y=fl;if(noseS.bn<3&&Math.abs(noseS.vy)>3){noseS.vy=-noseS.vy*.38;noseS.vz*=.7;noseS.vx*=.6;noseS.wx*=.6;noseS.wy*=.6;noseS.wz*=.6;noseS.bn++;}
+else{noseS.vy=0;const k=Math.exp(-dt*3);noseS.vz*=Math.exp(-dt*2.5);noseS.vx*=k;noseS.wx*=k;noseS.wy*=k;noseS.wz*=k;if(Math.abs(noseS.vz)<.4&&Math.abs(noseS.wx)<.15)noseS.rest=true;}}}
+function exPlace(g,zz){g.position.set(0,Et(zz),zz);g.visible=true;}
+function exStart(type,auto,d,bd){
+ const c=cas(),outdoorMsg=()=>{if(!auto)say('此路段位於隧道或地下段，無法觸發此事件，請稍後再試。');return false;};
+ if(type==='signal'){
+  const r=rd(),sub=c>=1?(r<.7?(rd()<.5?'red':'dark'):'degrade'):(r<.36?'degrade':r<.7?'red':'dark');
+  if(sub==='degrade'){
+   if(d<3500){if(!auto)say('前方即將進站，無法在此區間觸發號誌降級。');return false;}
+   ev.type='signal';ev.t=0;X={sub,ph:'run',endZ:z+Math.min(9000,Math.max(3000,d-1200))};ev.lim=160;ev.beep=0;ev.cut=false;ev.hold=0;
+   X.sz=z+900;exPlace(gantry,X.sz);
+   say('📡 ATC 車載號誌訊號中斷！切換降級模式，改採目視行車，限速 160 km/h。');beep(988,.3);if(!mute)voiceBroadcast(bcT('signalDegrade','各位旅客請注意，列車號誌系統發生異常，將以降級模式行駛，造成不便敬請見諒。'));return true;}
+  const dist=Math.max(900,Math.min(4200,bd*1.3+300));
+  if(d<dist+700){if(!auto)say('前方即將進站，無法在此區間觸發號誌故障。');return false;}
+  ev.type='signal';ev.t=0;X={sub,ph:'app',sz:z+dist,hit:false,hold:0};ev.cut=false;ev.beep=0;ev.lim=0;ev.hold=0;
+  exPlace(gantry,X.sz);
+  say(sub==='red'?`🚦 號誌故障：前方 ${(dist/1000).toFixed(1)} km 閉塞號誌固定顯示紅燈（停止）！請在號誌前停車。`:`🚦 號誌故障：前方 ${(dist/1000).toFixed(1)} km 號誌機熄滅，視同停止信號！請在號誌前停車。`);beep(880,.3);
+  if(!mute)voiceBroadcast(bcT('signalRed','行控中心通報，前方號誌機故障，請於號誌機前停車，等待行控指示。'));return true;}
+ if(type==='power'){
+  if(auto&&d<1800)return false;
+  const long=rd()<(c>=1?.75:.5);
+  ev.type='power';ev.t=0;X={left:long?28+rd()*24+c*8:9+rd()*9,long};ev.cut=true;ev.ebk=0;ev.darkT=.6;ev.beep=0;
+  say(long?'⚡ 供電區間失電！接觸網停電，列車失去牽引力，僅能惰行，請準備以空氣煞車停車。':'⚡ 瞬間跳電！接觸網失電，列車惰行中，請勿加速。');
+  if(!mute)voiceBroadcast(bcT('power','各位旅客請注意，列車供電暫時中斷，車內照明將暫時減弱，請留在座位上，不要慌張。'));return true;}
+ if(type==='equip'){
+  if(d<3500){if(!auto)say('前方即將進站，無法在此區間觸發設備故障。');return false;}
+  const rs=rd(),sub=rs<.28?'brake':rs<.56?'traction':rs<.82?'vibration':'smoke';
+  ev.type='equip';ev.t=0;X={sub,endZ:z+Math.min(9000,Math.max(3000,d-1500)),ph:'run',hold:0};ev.cut=false;ev.beep=0;
+  if(sub==='brake'){ev.bf=.5+rd()*.15;ev.lim=210;say(`🔧 制動單元故障！制動力降至約 ${Math.round(ev.bf*100)}%，煞車距離大增，限速 210 km/h，請提早煞車。`);}
+  else if(sub==='traction'){ev.tf=.35+rd()*.2;ev.lim=200;say(`🔧 牽引變流器故障！牽引力降低約 ${Math.round((1-ev.tf)*100)}%，加速緩慢，限速 200 km/h。`);}
+  else if(sub==='vibration'){ev.lim=170;ev.shake=Math.max(ev.shake,.9);say('🔧 轉向架異常振動！請降速至 170 km/h 以下，抵達下一站接受檢查。');}
+  else{ev.lim=160;say('🔥 車廂偵測到煙霧！限速 160 km/h，請盡快駛出隧道並於安全處所停車檢查。');}
+  beep(988,.3);if(!mute)voiceBroadcast(sub==='smoke'?bcT('smoke','各位旅客請注意，車廂偵測到煙霧，列車將停車檢查，請保持冷靜，聽從工作人員指示。'):bcT('equip','各位旅客請注意，列車發生設備異常，將降速行駛，造成不便敬請見諒。'));return true;}
+ if(type==='intrude'){
+  const subs=['debris','tree','animal','car'],sub=subs[Math.floor(rd()*4)],dist0=Math.max(700,Math.min(4200,bd*1.3+250));
+const dist=exSpot(dist0,dist0+9000,0,d-600);
+if(dist<0){if(!auto)say('前方到下一站之間沒有適合的戶外路段（隧道與地下段不會發生異物侵入），請行駛到戶外路段再試。');return false;}
+  const lab={debris:'倒塌的施工鐵皮與鷹架',tree:'倒伏的大樹',animal:'闖入的牛隻',car:'由跨越橋墜落的車輛'}[sub];
+  ev.type='intrude';ev.t=0;X={sub,lab,pz:z+dist,ph:'app',hit:false,hold:0,pen:{debris:100,tree:120,animal:80,car:220}[sub],obj:obsG[sub],leave:sub==='animal'&&rd()<.5,leaveT:6+rd()*5,gone:false};
+  ev.cut=false;ev.beep=0;ev.lim=0;ev.hold=0;exPlace(X.obj,X.pz);X.obj.position.x=0;
+  say(`⚠ 行控通報：前方 ${(dist/1000).toFixed(1)} km 軌道有${lab}！立即緊急煞車（空白鍵／B）！`);beep(880,.3);if(!mute)voiceBroadcast(bcT('intrude','行控中心通報，前方軌道有異物侵入，請立即採取緊急煞車。'));return true;}
+ if(type==='flood'){
+  const dist0=Math.max(1800,Math.min(4500,bd*1.3+500));let len=500+rd()*600,dist=exSpot(dist0,dist0+9000,len,d-700);
+if(dist<0){len=300;dist=exSpot(dist0,dist0+9000,len,d-700);}
+if(dist<0){if(!auto)say('前方到下一站之間沒有適合的戶外路段（隧道與地下段不會淹水），請行駛到戶外路段再試。');return false;}
+  const r=rd(),lvl=Math.min(2,(r<.4?0:r<.8?1:2)+(c>=2?1:0));
+  ev.type='flood';ev.t=0;X={fz:z+dist,len,lvl,ph:'app',hold:0,cm:[5,15,35][lvl],wy:[.03,.17,.42][lvl]};ev.cut=false;ev.lim=0;ev.stormT=1;ev.windS=6;ev.hold=0;
+  waterM.scale.set(26,len,1);waterM.position.set(-2.25,Et(X.fz+len/2)+X.wy,X.fz+len/2);waterM.visible=true;
+  say(`🌊 豪雨特報：前方 ${(dist/1000).toFixed(1)} km 軌道積水約 ${X.cm} cm，${lvl<2?'請依限速通過':'水位過高，必須停車等待排水'}。`);if(!mute)voiceBroadcast(bcT('flood','各位旅客請注意，列車行經豪雨區域，前方軌道有積水，將降速行駛，造成不便敬請見諒。'));return true;}
+ if(type==='rock'){
+  const trig=Math.max(800,bd*1.2+400);
+const cands=PORTALS.map(p=>({p,pz:p.z+p.o*(70+rd()*70)})).filter(o=>{const a=o.pz-z;return a>=trig+300&&a<=trig+9000&&d>=a+800;}).sort((x,y)=>x.pz-y.pz);
+if(!cands.length){if(!auto)say('邊坡落石只會發生在隧道或地下段的入口／出口附近；前方到下一站之間沒有符合的出入口。');return false;}
+const pz=cands[0].pz,portalName=cands[0].p.n;
+  const big=rd()<.4+.15*c;
+  ev.type='rock';ev.t=0;X={pz,trig,big,ph:'app',ft:0,hit:false,hold:0};ev.cut=false;ev.lim=210;ev.hold=0;ev.stormT=.55;ev.windS=4;
+  exPlace(slopeG,pz);exPlace(rockG,pz);rockG.visible=false;rockInit(big);
+  say(`⛰ 邊坡監測警戒：前方 ${((pz-z)/1000).toFixed(1)} km（${portalName}附近）邊坡雨量／地動超標，請降速並提高警覺。`);if(!mute)voiceBroadcast(bcT('rockWarn','各位旅客請注意，前方邊坡進入警戒狀態，列車將降速行駛。'));return true;}
+ return false;}
+function exTick(dt,d){
+ const ty=ev.type,kmh=Math.round(v*3.6),bd=v*v/2,ban=(t,cl,st)=>{evBanner(t,cl);ev.stat=st;ev.cl=cl;},fin=(m,km)=>{say(m);if(km)slowUntil=z+km;evEnd();},
+  wait=m=>{if(keys.w&&performance.now()-(ev.ww||0)>2500){ev.ww=performance.now();say(m);}},bl=(on,off)=>(Math.floor(t0*4)%2)?on:off;
+ // ---- 號誌故障 ----
+ if(ty==='signal'){
+  if(X.sub==='degrade'){const left=Math.max(0,X.endZ-z);sigSet(z<X.sz+60?'flash':'');
+   if(ev.t<4){ev.beep-=dt;if(ev.beep<=0){ev.beep=.5;beep(ev.alt?988:740,.14);ev.alt=!ev.alt;}}
+   ban(`📡 ATC 降級・目視行車｜限速 160 km/h｜剩餘 ${(left/1000).toFixed(1)} km`,'warn',`號誌故障・目視行車・剩 ${(left/1000).toFixed(1)} km`);
+   if(z>X.endZ)fin('ATC 訊號恢復正常，解除降級模式。',2000);return;}
+  const dist=X.sz-(z+3);sigSet(X.sub==='red'?'red':'dark');
+  if(X.ph==='app'){
+   if(dist<=0&&v>.05){X.hit=true;X.ph='hit';pen+=150;ev.cut=true;ev.ebk=1;say('💥 列車冒進停止信號！安全系統緊急制動（扣 150 分）。');beep(180,.6);}
+   else if(ev.t>1.5&&v<=.05&&dist<250){X.ph='hold';X.hold=X.h0=10;ev.cut=true;say(`✅ 已停於號誌前 ${Math.max(0,dist).toFixed(0)} m。正在聯絡行控中心確認…`);}
+   else if(ev.t>1.5&&v<=.05){ban(`🚦 已停車，距號誌尚有 ${Math.max(0,Math.round(dist/10)*10)} m｜請以 30 km/h 以下低速接近，停在號誌前`,'warn','號誌故障・請低速接近號誌');}
+   else{const wh=bd>dist-40;ev.beep-=dt;if(ev.beep<=0){ev.beep=wh?.25:.7;beep(wh?1200:660,.12);}
+    ban(`🚦 前方 ${Math.max(0,Math.round(dist/10)*10)} m 號誌${X.sub==='red'?'顯示紅燈':'熄滅'}｜煞車距離 ${Math.round(bd/10)*10} m${wh?'｜⚠ 來不及！全力煞車':''}`,wh?'bad':'warn',wh?`前方 ${Math.round(dist)} m 號誌・全力煞車！`:`前方 ${Math.round(dist)} m 號誌停止信號`);}
+  }else if(X.ph==='hit'){
+   if(v>.05){ev.ebk=1;ban(`🚨 冒進信號｜緊急制動中 ${kmh} km/h`,'bad','冒進信號・緊急制動');}
+   else{ev.ebk=0;if(!X.hold){X.hold=X.h0=10;say('列車已停妥，行控調查中，請待命。');}X.hold-=dt;ban(`🚑 冒進信號處理中｜行控調查，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'bad',`冒進信號處理中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('冒進信號處理中，禁止起動列車。');
+    if(X.hold<=0){X.ph='pass';ev.cut=false;ev.lim=30;say('行控授權：以 30 km/h 通過故障號誌（約 1.2 km）。');}}
+  }else if(X.ph==='hold'){
+   X.hold-=dt;ban(`✅ 已停於號誌前｜聯絡行控確認中，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'ok',`號誌故障・待行控授權 ${Math.max(0,Math.ceil(X.hold))}s`);wait('尚未取得行控授權，禁止通過號誌。');
+   if(X.hold<=0){X.ph='pass';ev.cut=false;ev.lim=30;say('行控授權：以 30 km/h 通過故障號誌（約 1.2 km）。');if(!mute)voiceBroadcast(bcT('signalPass','行控中心授權，列車以低速通過故障號誌。'));}
+  }else{const left=Math.max(0,X.sz+1200-z);ban(`🚦 行控授權通過｜限速 30 km/h｜剩餘 ${Math.round(left/10)*10} m`,'warn',`授權通過故障號誌・限速 30`);
+   if(z>X.sz+1200)fin('已通過故障號誌區間，恢復行駛，前方 3 km 限速 160 km/h。',3000);}
+  return;}
+ // ---- 停電 ----
+ if(ty==='power'){
+  X.left-=dt;
+  if(ev.t<1.6)ev.darkT=(Math.floor(ev.t*8)%2)?.75:.15;else ev.darkT=.6;
+  if(ev.t<3){ev.beep-=dt;if(ev.beep<=0){ev.beep=.45;beep(520,.12);}}
+  ban(`⚡ 停電｜接觸網失電・惰行 ${kmh} km/h｜預計 ${Math.max(0,Math.ceil(X.left))} 秒後復電`,'warn',`停電・惰行 ${kmh} km/h・剩 ${Math.max(0,Math.ceil(X.left))}s`);
+  if(v<.5)wait('停電中，列車無法起動。');
+  if(X.left<=0){ev.cut=false;fin('⚡ 電力已恢復，列車重新送電。恢復行駛，前方 3 km 限速 160 km/h。',3000);}
+  return;}
+ // ---- 列車設備故障 ----
+ if(ty==='equip'){
+  const left=Math.max(0,X.endZ-z),lk=(left/1000).toFixed(1);
+  if(X.sub==='smoke'){
+   if(X.ph==='run'){
+    const inT=tun>.5;
+    if(ev.t>70&&!X.forced){X.forced=true;pen+=100;ev.cut=true;ev.ebk=.7;say('⚠ 行控強制停車！未於時限內處置煙霧警報，扣 100 分。');}
+    if(v<=.05&&ev.t>1.5){X.ph='hold';X.hold=X.h0=10;ev.ebk=0;ev.cut=true;if(inT){pen+=80;say('⚠ 隧道內停車處置煙霧，疏散風險高（扣 80 分）。工作人員滅火檢查中。');}else say('✅ 已於安全處所停車，工作人員進行滅火與檢查。');}
+    else if(phase==='dwell'){fin('已於車站處理完畢，煙霧原因為空調設備過熱，已排除。',2000);return;}
+    else{ev.beep-=dt;if(ev.beep<=0){ev.beep=1.1;beep(1320,.1);}
+     ban(`🔥 車廂煙霧警報｜${inT?'⚠ 隧道內！盡快駛出隧道｜':''}請盡快於安全處所停車｜限速 160`,inT?'bad':'warn',`煙霧警報・${inT?'隧道內':'請停車處置'}・限速 160`);}
+   }else{X.hold-=dt;ban(`🧯 煙霧處置中｜滅火檢查，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'warn',`煙霧處置中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('煙霧處置中，禁止起動列車。');
+    if(X.hold<=0){ev.cut=false;fin('檢查完畢，煙霧原因為空調設備過熱，已隔離故障設備。恢復行駛，前方 3 km 限速 160 km/h。',3000);}}
+   return;}
+  if(X.sub==='vibration')ev.shake=Math.max(ev.shake,.9);
+  const tx={brake:`🔧 制動系統故障｜制動力 ${Math.round(ev.bf*100)}%｜煞車距離約 ${Math.round(bd/ev.bf/10)*10} m｜限速 210｜剩 ${lk} km`,traction:`🔧 牽引力降低 ${Math.round((1-ev.tf)*100)}%｜加速緩慢｜限速 200｜剩 ${lk} km`,vibration:`🔧 轉向架異常振動｜限速 170｜剩 ${lk} km`}[X.sub];
+  const sx={brake:'設備故障・制動力下降',traction:'設備故障・牽引力下降',vibration:'設備故障・車體振動'}[X.sub];
+  ban(tx,'warn',sx);
+  if(phase==='dwell'&&ev.t>6)fin('列車已於車站交由維修人員檢查，故障排除。',0);
+  else if(z>X.endZ)fin('故障裝置已隔離，列車性能恢復正常。',2000);
+  return;}
+ // ---- 異物侵入 ----
+ if(ty==='intrude'){
+  const o=X.obj,dist=X.pz-(z+3);o.userData.bc.material.opacity=bl(.9,.25);
+  if(X.leave&&!X.gone&&!X.hit&&ev.t>X.leaveT){o.position.x-=dt*3.4;if(o.position.x<-10){o.visible=false;X.gone=true;}}
+  if(X.gone&&X.ph!=='pass'&&X.ph!=='hit'){X.ph='pass';ev.cut=false;ev.ebk=0;ev.lim=120;say('✅ 動物已自行離開軌道，行控授權通行：限速 120 km/h 通過現場。');}
+  if(X.ph==='app'){
+   if(dist<=0){X.hit=true;X.ph='hit';o.visible=false;pen+=X.pen;ev.cut=true;ev.ebk=1;X.hold=0;say(`💥 列車撞擊${X.lab}！已緊急制動並通報行控檢查車體。扣 ${X.pen} 分。`);beep(180,.6);noseDrop();}
+   else if(ev.t>1.5&&v<=.05){X.ph='hold';X.hold=X.h0=10;ev.cut=true;say(`✅ 已及時停車，距離${X.lab}約 ${Math.max(0,dist).toFixed(0)} m。通報行控中。`);}
+   else{const wh=bd>dist-40;ev.beep-=dt;if(ev.beep<=0){ev.beep=wh?.25:.6;beep(wh?1200:660,.12);}
+    ban(`🚨 前方 ${Math.max(0,Math.round(dist/10)*10)} m 有${X.lab}｜煞車距離 ${Math.round(bd/10)*10} m${wh?'｜⚠ 來不及！全力煞車':''}${X.leave&&ev.t>X.leaveT-2?'｜目標似乎在移動':''}`,wh?'bad':'warn',wh?`前方 ${Math.round(dist)} m 異物・全力煞車！`:`前方 ${Math.round(dist)} m 異物・持續煞車`);}
+  }else if(X.ph==='hit'){
+   if(v>.05){ev.ebk=1;ban(`🚨 事故｜列車緊急制動中 ${kmh} km/h`,'bad','事故・緊急制動中');}
+   else{ev.ebk=0;if(!X.hold){X.hold=X.h0=10;say('列車已停妥，行控派員檢查車體與軌道。');}X.hold-=dt;ban(`🚑 事故處理中｜檢查車體與軌道，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'bad',`事故處理中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('事故處理中，禁止起動列車。');
+    if(X.hold<=0){X.ph='pass';ev.cut=false;ev.lim=100;say('檢查完畢，軌道已清理。以 100 km/h 以下通過現場。');}}
+  }else if(X.ph==='hold'){
+   X.hold-=dt;ban(`✅ 已緊急停車｜${X.lab}清除作業中，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'ok',`異物清除中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('軌道上仍有異物，禁止起動。');
+   if(X.hold<=0){o.visible=false;X.ph='pass';ev.cut=false;ev.lim=60;say('障礙已清除，限速 60 km/h 通過現場。');}
+  }else{ban(`⚠ 通過現場｜限速 ${ev.lim} km/h｜剩餘 ${Math.max(0,Math.round((X.pz+80-z)/10)*10)} m`,'warn',`通過異物現場・限速 ${ev.lim}`);
+   if(z>X.pz+80)fin('已通過異物處理區，恢復行駛，前方 3 km 限速 160 km/h。',3000);}
+  return;}
+ // ---- 豪雨淹水 ----
+ if(ty==='flood'){
+  const dist=X.fz-(z+3),inZ=z>=X.fz&&z<=X.fz+X.len;waterM.position.y=Et(X.fz+X.len/2)+X.wy+Math.sin(t0*2)*.012;
+  if(ev.t>20)ev.stormT=.8;
+  if(X.ph==='app'){
+   if(X.lvl<2){ev.lim=inZ?(X.lvl?45:110):(dist>1500?210:dist>600?(X.lvl?100:150):(X.lvl?60:110));
+    if(inZ&&v>8)ev.shake=Math.max(ev.shake,kmh>ev.lim+5?.7:.25);
+    ban(inZ?`🌊 通過積水區（${X.cm} cm）｜限速 ${ev.lim} km/h｜剩 ${Math.max(0,Math.round((X.fz+X.len-z)/10)*10)} m`:`🌊 前方 ${Math.max(0,Math.round(dist/10)*10)} m 軌道積水約 ${X.cm} cm｜限速 ${ev.lim} km/h`,'warn',`豪雨淹水・積水 ${X.cm} cm・限速 ${ev.lim}`);}
+   else{ev.lim=dist>1500?210:dist>800?120:dist>300?60:30;
+    if(dist<=0&&v>.05){X.ph='hit';pen+=200;ev.cut=true;ev.ebk=1;X.hold=0;say('💥 列車涉入深水！牽引馬達進水，已緊急停車（扣 200 分）。');beep(180,.6);}
+    else if(ev.t>1.5&&v<=.05&&dist<500){X.ph='hold';X.hold=X.h0=10;ev.cut=true;say(`✅ 已停於積水區前 ${Math.max(0,dist).toFixed(0)} m，等待抽水與軌道檢查。`);}
+    else if(ev.t>1.5&&v<=.05){ban(`🌊 已停車，距積水區尚有 ${Math.max(0,Math.round(dist/10)*10)} m｜請以 30 km/h 以下低速接近，停在積水區前`,'warn','淹水・請低速接近積水區');}
+    else{const wh=bd>dist-40;ban(`🌊 前方 ${Math.max(0,Math.round(dist/10)*10)} m 積水 ${X.cm} cm（淹過軌面）｜必須停車｜煞車距離 ${Math.round(bd/10)*10} m${wh?'｜⚠ 來不及！全力煞車':''}`,wh?'bad':'warn',wh?`前方 ${Math.round(dist)} m 深水・全力煞車！`:`豪雨淹水・水位過高・請停車`);}}
+  }else if(X.ph==='hit'){
+   if(v>.05){ev.ebk=1;ban(`🚨 涉水事故｜緊急制動中 ${kmh} km/h`,'bad','涉水事故・緊急制動');}
+   else{ev.ebk=0;if(!X.hold){X.hold=X.h0=10;say('列車已停妥，行控派員抽水並檢查牽引設備。');}X.hold-=dt;ban(`🚑 涉水事故處理中｜抽水檢查，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'bad',`涉水處理中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('事故處理中，禁止起動列車。');
+    if(X.hold<=0){X.ph='pass';ev.cut=false;ev.lim=20;say('檢查完畢，以 20 km/h 低速駛離積水區。');}}
+  }else if(X.ph==='hold'){
+   X.hold-=dt;ban(`✅ 已停車｜抽水與軌道檢查中，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'ok',`淹水・抽水檢查 ${Math.max(0,Math.ceil(X.hold))}s`);wait('積水未退，禁止起動。');
+   if(X.hold<=0){X.ph='pass';ev.cut=false;ev.lim=25;X.wy=Math.max(.1,X.wy-.2);say('水位已降，行控授權以 25 km/h 低速通過積水區。');}
+  }else{ev.lim=Math.max(ev.lim,20);if(inZ&&v>8)ev.shake=Math.max(ev.shake,.3);ban(`🌊 低速通過積水區｜限速 ${ev.lim} km/h｜剩 ${Math.max(0,Math.round((X.fz+X.len-z)/10)*10)} m`,'warn',`低速通過積水區・限速 ${ev.lim}`);}
+  if(z>X.fz+X.len+40)fin('已駛出積水區間，雨勢趨緩。恢復行駛，前方 2 km 限速 160 km/h。',2000);
+  return;}
+ // ---- 邊坡落石 ----
+ if(ty==='rock'){
+  const dist=X.pz-(z+3);
+  if(X.ph==='app'){
+   if(dist<=X.trig){X.ph='fall';X.ft=0;rockG.visible=true;say('🚨 邊坡偵測器動作！落石侵入軌道，請立即緊急煞車！');beep(1200,.3);if(!mute)voiceBroadcast(bcT('rockFall','行控中心通報，前方邊坡發生落石，請立即採取緊急煞車。'));}
+   else ban(`⛰ 邊坡監測警戒｜前方 ${Math.max(0,Math.round(dist/10)*10)} m 邊坡｜雨量／地動超標｜限速 210`,'warn','邊坡警戒・降速通過');
+  }
+  if(X.ph==='fall'){
+   X.ft+=dt;const landed=rockAnim(X.ft);if(landed&&!X.landed){X.landed=true;ev.shake=Math.max(ev.shake,.9);}
+   evf.style.opacity=X.ft<2.5?bl(.85,.1):0;
+   ev.beep-=dt;if(ev.beep<=0){ev.beep=.3;beep(ev.alt?1046:784,.12);ev.alt=!ev.alt;}
+   if(dist<=0){X.hit=true;X.ph='hit';pen+=X.big?250:150;ev.cut=true;ev.ebk=1;X.hold=0;evf.style.opacity=0;say(`💥 列車撞擊落石！已緊急制動並通報行控。扣 ${X.big?250:150} 分。`);beep(180,.6);noseDrop();}
+   else if(X.ft>3&&v>.05&&!X.forced){X.forced=true;ev.cut=true;ev.ebk=.6;say('ATC 落石偵測系統介入，列車自動制動。');}
+   else if(X.ft>1&&v<=.05){X.ph='hold';X.hold=X.h0=10;ev.cut=true;ev.ebk=0;evf.style.opacity=0;say(`✅ 已停車，距離落石約 ${Math.max(0,dist).toFixed(0)} m。派員清理與檢查軌道。`);}
+   else ban(`🚨 落石侵入軌道！前方 ${Math.max(0,Math.round(dist/10)*10)} m｜煞車距離 ${Math.round(bd/10)*10} m${bd>dist-40?'｜⚠ 來不及！全力煞車':''}`,bd>dist-40?'bad':'warn',`落石・前方 ${Math.round(dist)} m・全力煞車！`);
+  }else if(X.ph==='hit'){
+   rockAnim(9);if(v>.05){ev.ebk=1;ban(`🚨 事故｜列車緊急制動中 ${kmh} km/h`,'bad','事故・緊急制動中');}
+   else{ev.ebk=0;if(!X.hold){X.hold=X.h0=10;say('列車已停妥，行控派員檢查車體並清理落石。');}X.hold-=dt;ban(`🚑 事故處理中｜清理落石，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'bad',`事故處理中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('事故處理中，禁止起動列車。');
+    if(X.hold<=0){X.ph='pass';ev.cut=false;rockG.visible=false;ev.lim=X.big?30:60;say(`檢查完畢，落石已清除。限速 ${ev.lim} km/h 通過。`);}}
+  }else if(X.ph==='hold'){
+   X.hold-=dt;ban(`✅ 已停車｜${X.big?'大型':'小型'}落石清理中，剩餘 ${Math.max(0,Math.ceil(X.hold))} 秒`,'ok',`落石清理中 ${Math.max(0,Math.ceil(X.hold))}s`);wait('軌道上仍有落石，禁止起動。');
+   if(X.hold<=0){X.ph='pass';ev.cut=false;rockG.visible=false;ev.lim=X.big?30:60;say(`落石已清除，限速 ${ev.lim} km/h 通過邊坡區。`);}
+  }else if(X.ph==='pass'){ban(`⛰ 通過邊坡區｜限速 ${ev.lim} km/h｜剩餘 ${Math.max(0,Math.round((X.pz+120-z)/10)*10)} m`,'warn',`通過落石區・限速 ${ev.lim}`);
+   if(z>X.pz+120)fin('已通過邊坡區，恢復行駛，前方 3 km 限速 160 km/h。',3000);}
+  return;}
+}
+// V73：解除事件時，把所有殘留效果（搖晃、風雨、停電變暗、限速、車頭脫落）立刻歸零
+function evReset(){ev.shake=0;ev.storm=0;ev.stormT=0;ev.wind=0;ev.windS=0;ev.gust=0;ev.dark=0;ev.darkT=0;ev.bf=1;ev.tf=1;ev.lim=0;ev.cut=false;ev.ebk=0;ev.hold=0;ev.stat='';ev.sh=false;ev.af=false;ev.hit=false;rain.visible=false;$('exdark').style.opacity=0;evf.style.opacity=0;person.visible=false;exClear();evBanner('');}
+function evNext(){const n=ST[nextTargetIndex()];return n.z-z;}
+function evEnd(){tlog('end',{type:ev.type,pen});exClear();ev.shake=0;ev.gust=0;ev.bf=1;ev.tf=1;ev.stormT=0;ev.darkT=0;if(ev.chainQ&&ev.chainQ.length){ev.pend=ev.chainQ.shift();ev.nextT=5+Math.random()*5;ev.tries=0;}else{ev.pend=null;ev.chainN=0;ev.cn=0;}ev.type=null;ev.hold=0;ev.cut=false;ev.ebk=0;ev.lim=0;ev.stat='';ev.hit=false;person.visible=false;evBanner('');evf.style.opacity=0;ev.cool=cfgCool();}
+function evStart(type,auto){if(!type)return false;const ok=evStart0(type,auto);if(ok&&type!=='clear')exLog(type);return ok;}
+function evStart0(type,auto){
+ if(type==='clear'){ev.chainQ=[];ev.pend=null;ev.chainN=0;ev.cn=0;ev.tries=0;if(ev.type)evEnd();evReset();ev.cool=Math.max(ev.cool,90);slowUntil=-1;say('已解除目前事件，所有效果已清除。');return true;}
+ if(ev.type){if(!auto)say('目前已有事件進行中，請先解除。');return false;}
+ if(phase!=='manual'||incidentPending||pendingBase){if(!auto)say('請在「手動駕駛」行駛中觸發事件。');return false;}
+ const d=evNext(),bd=v*v/2;
+ if(type==='quake'){
+  if(auto&&d<Math.max(1500,bd*1.3+500))return false;
+  ev.type='quake';ev.t=0;ev.sh=false;ev.quakeI=4+Math.floor(Math.random()*3);ev.cut=true;ev.ebk=.85;ev.lim=0;ev.hold=0;ev.shake=0;ev.af=false;ev.beep=0;
+  say(`🚨 地震預警！預估震度 ${ev.quakeI} 級，列車自動斷電並緊急制動。`);if(!mute)voiceBroadcast(bcT('quake','各位旅客請注意，偵測到強烈地震，列車將緊急停車，請抓緊扶手、留在座位上，不要慌張。'));return true;}
+ if(type==='typhoon'){
+  if(auto&&(z>44000||d<3000))return false;
+  ev.type='typhoon';ev.lvl=Math.floor(Math.random()*3);ev.base=CFG.wind[ev.lvl];ev.endZ=Math.min(z+9000,47500);ev.wt=0;ev.gT=5;ev.gust=0;ev.windS=ev.base;
+  say(`🌀 ${['輕度','中度','強烈'][ev.lvl]}颱風外圍環流影響，風雨增強，請依風速限速行駛。`);if(!mute)voiceBroadcast(bcT('typhoon','各位旅客請注意，列車行經颱風影響區域，風雨較大，將依風速調整行車速度，造成不便敬請見諒。'));return true;}
+ if(type==='person'){
+  const dist0=Math.max(700,Math.min(4200,bd*1.3+250)),dist=exSpot(dist0,dist0+9000,0,d-600);
+if(dist<0){if(!auto)say('前方到下一站之間沒有適合的戶外路段（隧道與地下段不會發生臥軌），請行駛到戶外路段再試。');return false;}
+ev.type='person';ev.pz=z+dist;ev.hit=false;ev.hold=0;ev.cut=false;ev.beep=0;ev.lim=0;
+  person.position.set(-2.25,Et(ev.pz)-.45,ev.pz);person.visible=true;
+  say(`⚠ 行控通報：前方 ${(dist/1000).toFixed(1)} km 軌道有人臥軌！立即緊急煞車（空白鍵／B）！`);beep(880,.3);if(!mute)voiceBroadcast(bcT('person','行控中心通報，前方軌道有人員侵入，請立即採取緊急煞車。'));return true;}
+ if(type==='chain'){const tpl=CHAINS[Math.floor(Math.random()*CHAINS.length)],n=Math.min(tpl.s.length,2+(Math.random()<.45?1:0)),seq=tpl.s.slice(0,n);if(!evStart0(seq[0],auto))return false;exLog(seq[0]);ev.chainQ=seq.slice(1);ev.chainN=seq.length;ev.cn=1;say(`⛓ 連鎖事故「${tpl.n}」：預計連續 ${n} 個事件，請保持警戒。`);return true;}
+ return exStart(type,auto,d,bd);}
+function evCam(){const s=ev.shake;if(s>.01){const a=s*.6;cam.position.x+=(Math.random()-.5)*.14*a;cam.position.y+=(Math.random()-.5)*.1*a;cam.rotateZ((Math.random()-.5)*.035*a);cam.rotateX((Math.random()-.5)*.012*a);}
+ if(ev.storm>.02&&tun<.98){const w=ev.windS*ev.storm*(1-tun)*2.2;cam.rotateZ(Math.sin(t0*2.1)*.0008*w+Math.sin(t0*5.3)*.0004*w);cam.position.x+=Math.sin(t0*3.1)*.004*w;}}
+function evTick(dt,simDt,d){
+ ev.shake*=Math.pow(.5,dt/1.2);if(ev.shake<.06)ev.shake=0;
+ ev.dark+=((ev.darkT||0)-ev.dark)*Math.min(1,dt*(ev.darkT>ev.dark?4:1.2));$('exdark').style.opacity=ev.dark>.01?ev.dark.toFixed(2):0;
+ if(ev.type!=='typhoon')ev.storm+=((ev.stormT||0)-ev.storm)*Math.min(1,dt*.5);
+ // 隨機排程
+ if(!ev.type){ev.stat='';exPendTick(dt);if(!ev.pend&&ev.auto&&phase==='manual'&&!incidentPending&&!pendingBase&&z>1500&&z<45000){ev.cool-=dt;if(ev.cool<=0){const pick=exPick();if(!evStart(pick,true))ev.cool=6;}}}
+ else{
+  ev.t+=dt;const bd=v*v/2;
+  if(ev.type==='quake'){
+   if(ev.t>=2&&!ev.sh){ev.sh=true;ev.shake=Math.max(ev.shake,ev.quakeI-3);}
+   if(ev.t<4){ev.ebk=.85;ev.beep-=dt;if(ev.beep<=0){ev.beep=.4;beep(ev.alt?1046:784,.16);ev.alt=!ev.alt;}evf.style.opacity=(Math.floor(t0*4)%2)?.9:.1;evBanner(`🚨 地震預警｜預估震度 ${ev.quakeI} 級｜自動斷電・緊急制動`,'bad');ev.stat='地震預警・自動緊急制動';ev.cl='bad';}
+   else{evf.style.opacity=0;
+    if(!ev.hold&&v>.05){ev.ebk=.7;evBanner(`🌋 地震｜列車制動中 ${Math.round(v*3.6)} km/h`,'bad');ev.stat='地震・制動中，禁止加速';ev.cl='bad';}
+    else{ev.ebk=0;if(!ev.hold){ev.hold=10;ev.hold0=ev.hold;say('列車已停妥。行控通知：地震後軌道巡檢中，請待命。');}
+     ev.hold-=dt;
+     if(!ev.af&&ev.hold<ev.hold0*.5){ev.af=true;ev.shake=Math.max(ev.shake,(ev.quakeI-3)*.6);say('⚠ 餘震！請保持停車待命。');}
+     evBanner(`🌋 地震管制｜軌道巡檢中，剩餘 ${Math.max(0,Math.ceil(ev.hold))} 秒`,'warn');ev.stat=`地震管制・巡檢中 ${Math.max(0,Math.ceil(ev.hold))}s`;ev.cl='warn';
+     if(keys.w&&performance.now()-(ev.ww||0)>2500){ev.ww=performance.now();say('地震管制中，禁止起動列車。');}
+     if(ev.hold<=0){say('巡檢完畢，軌道無異狀。恢復行駛，前方 5 km 限速 160 km/h。');slowUntil=z+5000;ev.sh=false;evEnd();}}}
+  }else if(ev.type==='typhoon'){
+   const tgt=z>ev.endZ?0:1;ev.storm+=(tgt-ev.storm)*Math.min(1,dt*.5);
+   ev.gT-=dt;if(ev.gT<=0){ev.gT=8+Math.random()*8;ev.gust=1;if(ev.base>=24)say('⚠ 強陣風！請留意橫風。');}ev.gust=Math.max(0,ev.gust-dt*.5);
+   const w=Math.max(0,(ev.base+4*Math.sin(ev.t*.7)+3*Math.sin(ev.t*1.9+1)+ev.gust*7)*ev.storm);ev.wind=w;ev.windS+=(w-ev.windS)*Math.min(1,dt*1.5);
+   const ws=ev.windS;ev.lim=ws>=30?70:ws>=25?150:ws>=20?210:ws>=15?270:0;
+   const lt=ev.lim?`限速 ${ev.lim} km/h`:'無限速';
+   evBanner(`🌀 ${['輕度','中度','強烈'][ev.lvl]}颱風｜風速 ${Math.round(ws)} m/s｜${lt}${ev.gust>.4?'｜⚠ 強陣風':''}`,ws>=25?'bad':'warn');ev.stat=`颱風・風速 ${Math.round(ws)} m/s・${lt}`;ev.cl=ws>=25?'bad':'warn';
+   if(ev.storm<.02&&z>ev.endZ){ev.storm=0;ev.lim=0;say('已駛出颱風影響範圍，天氣轉好，恢復一般限速。');evEnd();}
+  }else if(ev.type==='person'){
+   const dist=ev.pz-(z+3);person.userData.bc.material.opacity=(Math.floor(t0*4)%2)?.9:.25;
+   if(!ev.hit&&dist<=0){ev.hit=true;person.visible=false;pen+=150;ev.cut=true;ev.ebk=1;ev.hold=0;say('💥 列車撞擊軌道上人員！已緊急制動並通報警消。扣 150 分。');beep(180,.6);}
+   if(ev.hit){
+    if(v>.05){ev.ebk=1;evBanner(`🚨 事故｜列車緊急制動中 ${Math.round(v*3.6)} km/h`,'bad');ev.stat='事故・緊急制動中';ev.cl='bad';}
+    else{ev.ebk=0;if(!ev.hold){ev.hold=10;say('列車已停妥，行控通報警消到場處理。');}ev.hold-=dt;evBanner(`🚑 事故處理中｜等待警消到場，剩餘 ${Math.max(0,Math.ceil(ev.hold))} 秒`,'bad');ev.stat=`事故處理中 ${Math.max(0,Math.ceil(ev.hold))}s`;ev.cl='bad';
+     if(keys.w&&performance.now()-(ev.ww||0)>2500){ev.ww=performance.now();say('事故處理中，禁止起動列車。');}
+     if(ev.hold<=0){say('現場處理完畢，恢復行駛，前方 3 km 限速 160 km/h。');slowUntil=z+3000;evEnd();}}
+   }else if(ev.t>1.5&&v<=.05){
+    ev.cut=true;if(!ev.hold){ev.hold=10;say(`✅ 已及時停車，距離人員約 ${Math.max(0,dist).toFixed(0)} m。通報行控中。`);}ev.hold-=dt;
+    evBanner(`✅ 已緊急停車｜等待救援人員帶離，剩餘 ${Math.max(0,Math.ceil(ev.hold))} 秒`,'ok');ev.stat=`臥軌處理中 ${Math.max(0,Math.ceil(ev.hold))}s`;ev.cl='ok';
+    if(keys.w&&performance.now()-(ev.ww||0)>2500){ev.ww=performance.now();say('軌道上仍有人員，禁止起動。');}
+    if(ev.hold<=0){say('人員已安全帶離軌道，恢復行駛，前方 3 km 限速 160 km/h。');slowUntil=z+3000;evEnd();}
+   }else{
+    const willHit=bd>dist-40;ev.beep-=dt;if(ev.beep<=0){ev.beep=willHit?.25:.6;beep(willHit?1200:660,.12);}
+    evBanner(`🚨 前方 ${Math.max(0,Math.round(dist/10)*10)} m 有人臥軌｜煞車距離 ${Math.round(bd/10)*10} m${willHit?'｜⚠ 來不及！全力煞車':''}`,willHit?'bad':'warn');ev.stat=willHit?`前方 ${Math.round(dist)} m 臥軌・全力煞車！`:`前方 ${Math.round(dist)} m 臥軌・持續煞車`;ev.cl=willHit?'bad':'warn';
+   }}}
+ if(ev.type&&EXT.includes(ev.type))exTick(dt,d);
+ if(ev.storm>.02||rain.visible)rainUpdate(dt,ev.storm*(1-tun));}
+document.querySelectorAll('[data-ev]').forEach(b=>b.addEventListener('click',()=>{unlockSpeech();initAudio();evStart(b.dataset.ev,false);b.blur();}));
+exScn();setTimeout(()=>say('🎲 本次任務情境：'+scn.n+'｜'+scn.d),3000);
+$('evDiff').addEventListener('change',e=>{ev.diff=+e.target.value;ev.cool=Math.min(ev.cool,CFG.cool[ev.diff][0]+20);e.target.blur();});
+$('evReroll').addEventListener('click',e=>{const old=scn;let n;do{n=RISK[Math.floor(Math.random()*RISK.length)];}while(n===old);scn=n;exScn();say('🎲 本次任務情境：'+scn.n+'｜'+scn.d);e.target.blur();});
+$('evAuto').addEventListener('change',e=>{ev.auto=e.target.checked;e.target.blur();});
+// ===== V74：載入後台設定 =====
+function cfgMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))cfgMerge(a[k],b[k]);else a[k]=b[k];}return a;}
+function cfgApply(){
+ if(Array.isArray(CFG.scn)&&CFG.scn.length){RISK.splice(0,RISK.length,...CFG.scn);scn=RISK[Math.floor(Math.random()*RISK.length)];exScn();}
+ ev.diff=+CFG.diff;$('evDiff').value=ev.diff;ev.auto=!!CFG.auto;$('evAuto').checked=ev.auto;ev.cool=Math.min(ev.cool,cfgCool());
+ document.querySelectorAll('[data-ev]').forEach(b=>{const c=CFG.ev[b.dataset.ev];if(c)b.style.display=c.on?'':'none';});
+ $('cfgMax').textContent=CFG.drive.max;$('cfgWarn').textContent=CFG.drive.warn;}
+const DBG={};
+(async()=>{const q=new URLSearchParams(location.search),src=[];
+ try{const r=await fetch('hsr-config.json?'+Date.now(),{cache:'no-store'});DBG.file=r.status;if(r.ok){cfgMerge(CFG,await r.json());src.push('設定檔');DBG.privFile=JSON.stringify(CFG.priv);}}catch(e){DBG.file='失敗：'+e.message;}
+ try{if(CFG.sb&&CFG.sb.url&&CFG.sb.key){const sb0=CFG.sb,r=await fetch(CFG.sb.url+'/rest/v1/hsr_config?id=eq.1&select=data',{headers:(sb0.key.startsWith('eyJ')?{apikey:sb0.key,Authorization:'Bearer '+sb0.key}:{apikey:sb0.key})});DBG.cloud=r.status;if(r.ok){const j=await r.json();DBG.cloudRows=j.length;if(j[0]&&j[0].data){DBG.privCloud=JSON.stringify(j[0].data.priv);cfgMerge(CFG,j[0].data);CFG.sb=sb0;src.push('雲端');}}}}catch(e){DBG.cloud='失敗：'+e.message;}
+ try{if(q.get('preview')==='1'){const l=localStorage.getItem('hsrCfg');if(l){cfgMerge(CFG,JSON.parse(l));src.push('本機預覽');}}}catch(e){}
+ try{cfgApply();}catch(e){DBG.apply=e.message;}if(src.length)setTimeout(()=>say('⚙ 已載入後台設定：'+src.join('＋')),3500);try{consentInit();}catch(e){DBG.consent=e.message;}
+ if(q.get('debug')==='1')dbgPanel();tlog('session',{cfg:src.join('+')||'預設'});})();
+// ===== V74：個資法告知同意（第7、8條）＋當事人權利（第3、11條）=====
+const escH=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const AREAS=[['台北市',25.04,121.56],['新北市',25.01,121.46],['基隆市',25.13,121.74],['桃園市',24.99,121.30],['新竹市',24.81,120.97],['新竹縣',24.84,121.01],['苗栗縣',24.56,120.82],['台中市',24.15,120.67],['彰化縣',24.07,120.54],['南投縣',23.96,120.97],['雲林縣',23.71,120.43],['嘉義市',23.48,120.45],['嘉義縣',23.45,120.29],['台南市',23.00,120.21],['高雄市',22.63,120.30],['屏東縣',22.55,120.55],['宜蘭縣',24.70,121.74],['花蓮縣',23.98,121.60],['台東縣',22.76,121.14],['澎湖縣',23.57,119.57],['金門縣',24.45,118.38],['連江縣',26.16,119.95]];
+function nearArea(la,lo){let b=null,m=9;AREAS.forEach(a=>{const d=Math.hypot(la-a[1],lo-a[2]);if(d<m){m=d;b=a[0];}});return m>1.2?'台灣以外':b;}
+const privOK=()=>{const p=CFG.priv,s=CFG.sb;return !!(p&&p.on&&p.org&&p.contact&&s&&s.url&&s.key);};
+const sbHdr=j=>Object.assign({apikey:CFG.sb.key},j?{'Content-Type':'application/json'}:{},CFG.sb.key.startsWith('eyJ')?{Authorization:'Bearer '+CFG.sb.key}:{});
+const sbIns=(t,o)=>{try{fetch(CFG.sb.url+'/rest/v1/'+t,{method:'POST',keepalive:true,headers:Object.assign(sbHdr(1),{Prefer:'return=minimal'}),body:JSON.stringify(o)}).catch(()=>{});}catch(e){}};
+const sbRpc=(f,a)=>fetch(CFG.sb.url+'/rest/v1/rpc/'+f,{method:'POST',headers:sbHdr(1),body:JSON.stringify(a)}).then(r=>r.ok?r.text().then(t=>t?JSON.parse(t):null):Promise.reject(new Error(r.status)));
+const conSave=()=>{try{localStorage.setItem('hsrConsent',JSON.stringify(CON));}catch(e){}};
+function privText(){const p=CFG.priv;return `<p><b>${escH(p.org)}</b>（以下稱本站）為提供與改善「高鐵 3D 模擬器」，依個人資料保護法第 8 條告知下列事項：</p><ol style="padding-left:20px;margin:6px 0"><li>蒐集目的：遊戲使用人數統計、事件與操作紀錄分析、改善模擬器內容。</li><li>個人資料類別：您自行輸入的暱稱（帳號識別）、縣市層級的概略地點（由您的裝置位置在本機換算，精確座標不會上傳）、隨機產生的玩家編號，以及遊戲中的事件與處置紀錄。請勿輸入真實姓名、電話或其他可識別您的資料。</li><li>利用期間、地區、對象及方式：自同意日起 ${+p.days||365} 天內，於本站使用的雲端資料庫所在地區，僅供本站管理者以統計、分析方式內部利用，不提供第三人。</li><li>您的權利：得隨時查詢、閱覽、請求製給複製本、補充更正、請求停止蒐集處理利用或請求刪除。可直接使用畫面左下角「🔒 我的資料」，或聯絡：${escH(p.contact)}。</li><li>不提供的影響：您可以選擇「不同意」，仍可完整遊玩，僅會被計為一位匿名使用者，不蒐集暱稱、地點與事件紀錄。</li><li>未滿 18 歲者，請取得法定代理人同意後再選擇「同意」。</li></ol>`;}
+const cBs=c=>'padding:8px 14px;border-radius:8px;border:1px solid #2d4a7a;cursor:pointer;font:inherit;color:#fff;background:'+c;
+const cIn='width:100%;padding:7px 10px;border-radius:7px;border:1px solid #2d4a7a;background:#0e1422;color:#e8f0ff;font:inherit';
+function cnsModal(inner){const o=document.getElementById('cnsM');if(o)o.remove();const d=document.createElement('div');d.id='cnsM';d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(5,10,20,.88);display:flex;align-items:center;justify-content:center;padding:14px;font:14px/1.6 system-ui,"Noto Sans TC",sans-serif;color:#e8f0ff';d.innerHTML='<div id="cnsBox" style="max-width:560px;width:100%;max-height:92vh;overflow:auto;background:#16203a;border:1px solid #2d4a7a;border-radius:12px;padding:16px">'+inner+'</div>';document.body.appendChild(d);d.querySelectorAll('input').forEach(i=>['keydown','keyup'].forEach(ev=>i.addEventListener(ev,e=>e.stopPropagation())));return d;}
+['keydown','keyup'].forEach(ev=>window.addEventListener(ev,e=>{if(document.getElementById('cnsM')&&e.target.tagName!=='INPUT')e.stopImmediatePropagation();},true));
+function consentUI(){const d=cnsModal(`<h3 style="margin:0 0 6px;font-size:17px">🔒 隱私權政策與個人資料告知</h3><div style="font-size:13px;color:#c8d8f5">${privText()}</div><label style="display:block;margin:10px 0 2px;font-size:13px">暱稱（選填；僅在您同意時儲存）</label><input id="cnsN" maxlength="20" placeholder="例如：高鐵迷" style="${cIn}"><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button id="cnsY" style="${cBs('#e8730c')}">同意並繼續</button><button id="cnsX" style="${cBs('#3a4a6e')}">不同意（僅計入匿名人數）</button></div>`);
+ d.querySelector('#cnsX').onclick=()=>{const first=!CON,ver=CFG.priv.ver;CON={ok:false,v:ver,pid:CON&&CON.pid};conSave();if(first)sbIns('hsr_players',{consent:false,policy_ver:ver});d.remove();say('已記錄您的選擇：不同意，僅計入匿名人數');};
+ d.querySelector('#cnsY').onclick=()=>{const ver=CFG.priv.ver,nick=(d.querySelector('#cnsN').value||'').replace(/[<>"&]/g,'').trim().slice(0,20),old=CON&&CON.pid,pid=old||(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2)+Date.now());
+  d.querySelector('#cnsBox').innerHTML='<p>正在取得概略地點…若瀏覽器詢問位置權限，拒絕也可以繼續遊玩。</p>';
+  const fin=area=>{CON={ok:true,v:ver,pid,nick,area};conSave();if(old)sbRpc('update_my_nick',{p_pid:pid,p_nick:nick}).catch(()=>{});else sbIns('hsr_players',{consent:true,pid,nick:nick||null,area,policy_ver:ver});d.remove();say('已儲存您的同意，可由左下角「我的資料」隨時管理');};
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(p=>fin(nearArea(p.coords.latitude,p.coords.longitude)),()=>fin(null),{timeout:8000,maximumAge:600000});else fin(null);};}
+function myData(){const ver=CFG.priv.ver,ok=CON&&CON.ok&&CON.v===ver;
+ const d=cnsModal(`<h3 style="margin:0 0 6px;font-size:17px">🔒 我的資料</h3><div style="font-size:13px;margin:6px 0">${ok?`您已同意。暱稱：${escH(CON.nick)||'（未填）'}｜地點：${escH(CON.area)||'（未提供）'}｜玩家編號：${escH((CON.pid||'').slice(0,8))}…`:'您目前未同意，僅被計為匿名人數，本站沒有您的暱稱、地點或事件紀錄。'}</div><pre id="cnsR" style="white-space:pre-wrap;max-height:200px;overflow:auto;font-size:12px;background:#0e1422;border-radius:8px;padding:8px;display:none"></pre><div style="display:flex;gap:8px;flex-wrap:wrap">${ok?`<button data-a="q" style="${cBs('#3a4a6e')}">查詢／複製我的雲端資料</button><button data-a="n" style="${cBs('#3a4a6e')}">更正暱稱</button><button data-a="s" style="${cBs('#3a4a6e')}">停止蒐集</button><button data-a="d" style="${cBs('#b3322e')}">刪除我的所有資料</button>`:`<button data-a="r" style="${cBs('#e8730c')}">重新閱讀並選擇</button>`}<button data-a="p" style="${cBs('#3a4a6e')}">閱讀政策</button><button data-a="c" style="${cBs('#3a4a6e')}">關閉</button></div>`);
+ const R=d.querySelector('#cnsR'),out=t=>{R.style.display='block';R.textContent=t;};
+ d.onclick=e=>{const a=e.target.dataset&&e.target.dataset.a;if(!a)return;
+  if(a==='c')d.remove();
+  else if(a==='p')cnsModal(privText()+`<button data-a="b" style="${cBs('#3a4a6e')}">返回</button>`).onclick=ev=>{if(ev.target.dataset.a==='b')myData();};
+  else if(a==='r')consentUI();
+  else if(a==='q')sbRpc('get_my_data',{p_pid:CON.pid}).then(j=>out(JSON.stringify(j,null,1))).catch(()=>out('查詢失敗，請稍後再試或聯絡 '+CFG.priv.contact));
+  else if(a==='n'){const n=prompt('新的暱稱（20 字內）',CON.nick||'');if(n===null)return;const nick=n.replace(/[<>"&]/g,'').trim().slice(0,20);sbRpc('update_my_nick',{p_pid:CON.pid,p_nick:nick}).then(()=>{CON.nick=nick;conSave();myData();}).catch(()=>out('更正失敗，請稍後再試或聯絡 '+CFG.priv.contact));}
+  else if(a==='s'){CON.ok=false;conSave();myData();say('已停止蒐集；已儲存的資料仍在，可選擇刪除');}
+  else if(a==='d'){if(!confirm('確定刪除您在本站的所有資料？此動作無法復原。'))return;sbRpc('delete_my_data',{p_pid:CON.pid}).then(()=>{CON={ok:false,v:ver};conSave();try{localStorage.removeItem('hsrLog');}catch(e){}myData();say('您的資料已刪除');}).catch(()=>out('刪除失敗，請稍後再試或聯絡 '+CFG.priv.contact));}};}
+
+function dbgPanel(){const p=CFG.priv||{},s=CFG.sb||{},L=[];
+ L.push('【診斷】網址協定：'+location.protocol+(location.protocol==='file:'?'  ← 用檔案方式開啟時瀏覽器不讓讀設定檔，請部署到網站':''));
+ L.push('hsr-config.json：'+(DBG.file===undefined?'未嘗試':DBG.file)+(DBG.file===200?'（讀到）':DBG.file==404?'（找不到，沒放在同資料夾）':''));
+ L.push('  檔案裡的隱私設定：'+(DBG.privFile||'（沒有）'));
+ L.push('雲端設定：'+(DBG.cloud===undefined?'未嘗試（沒有連線資料）':DBG.cloud)+(DBG.cloudRows!==undefined?'，資料列數 '+DBG.cloudRows:''));
+ L.push('  雲端裡的隱私設定：'+(DBG.privCloud||'（沒有）')+(DBG.privCloud&&DBG.privFile&&DBG.privCloud!==DBG.privFile?'  ← 與設定檔不同，雲端優先！請在後台再按一次「上傳設定到雲端」':''));
+ L.push('最後生效：啟用='+p.on+'｜名稱='+(p.org?'有':'空')+'｜聯絡='+(p.contact?'有':'空')+'｜雲端網址='+(s.url?'有':'空')+'｜金鑰='+(s.key?'有':'空'));
+ L.push('詢問是否啟動：'+privOK());
+ L.push('已記錄的選擇：'+(CON?JSON.stringify({ok:CON.ok,v:CON.v}):'（無）')+'｜政策版本：'+p.ver);
+ ['apply','consent'].forEach(k=>{if(DBG[k])L.push('錯誤('+k+')：'+DBG[k]);});
+ const d=document.createElement('pre');d.style.cssText='position:fixed;left:8px;top:8px;right:8px;z-index:100000;margin:0;padding:10px;background:rgba(0,0,0,.88);color:#9f9;font:12px/1.5 monospace;white-space:pre-wrap;border-radius:8px;max-height:70vh;overflow:auto';d.textContent=L.join('\n')+'\n\n（點一下關閉）';d.onclick=()=>d.remove();document.body.appendChild(d);}
+function consentInit(){if(new URLSearchParams(location.search).get('consent')==='reset'){try{localStorage.removeItem('hsrConsent');}catch(e){}CON=null;}
+ if(!privOK())return;if(!document.getElementById('cnsB')){const b=document.createElement('button');b.id='cnsB';b.textContent='🔒 我的資料';b.style.cssText='position:fixed;left:8px;bottom:8px;z-index:9000;padding:4px 9px;font-size:12px;border-radius:14px;border:1px solid #2d4a7a;background:rgba(22,32,58,.85);color:#c8d8f5;cursor:pointer';b.onclick=myData;document.body.appendChild(b);}
+ if(!(CON&&CON.v===CFG.priv.ver))consentUI();}
+
+// ---- V73：可調式視野 ----
+{const fr=$('fovR'),fv=$('fovV');if(fr&&fv){const setF=(f,save)=>{f=Math.max(45,Math.min(110,Math.round(+f||70)));cam.fov=f;cam.updateProjectionMatrix();fr.value=f;fv.textContent=f+'°';if(save){try{localStorage.setItem('hsrFov',f);}catch(e){}}};
+let f0=70;try{f0=+localStorage.getItem('hsrFov')||70;}catch(e){}setF(f0,false);
+fr.addEventListener('input',e=>setF(e.target.value,true));fr.addEventListener('change',e=>e.target.blur());
+addEventListener('keydown',e=>{if(editableTarget(e))return;if(e.key==='['||e.key===']'){setF(cam.fov+(e.key===']'?5:-5),true);say('視野 '+Math.round(cam.fov)+'°');}});}}
+// ---- 主迴圈 ----
+buildEndBranch();
+// ---- V76 移植：閉塞號誌、ATC 紅燈、前行列車、翻車即遊戲結束 ----
+const REDS=[],SIGS=[],HALOTEX=(function(){const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d'),g=x.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.25,'rgba(255,255,255,.55)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,64,64);return new THREE.CanvasTexture(c);})();
+function sigLimit(){return Math.min(sigLimit0(),blkLim());}
+function sigLimit0(){if(phase!=='manual')return 999;const r=REDS.find(q=>q.on&&q.z>z&&q.z-z<700);return r?60:999;}
+function redTick(kmh){if(BLK.eb&&v<=.05)BLK.eb=false;if(phase!=='manual')return;REDS.forEach(r=>{if(z<r.z-900)r.done=false;if(r.on&&!r.done&&z>=r.z){r.done=true;if(kmh>65){pen+=150;BLK.eb=true;say('🛑 冒進紅燈號誌（'+Math.round(kmh)+' km/h）！ATC 自動緊急煞車，扣 150 分。');beep(180,.6);}else say('✅ 已降速至 60 km/h 以下通過紅燈號誌，請依指示進站。');}});}
+(function(){const B=new THREE.BoxGeometry(1,1,1),Cy=new THREE.CylinderGeometry(.5,.5,1,10),M=c=>new THREE.MeshLambertMaterial({color:c}),mk=(g,m,sx,sy,sz,x,y,zz)=>{const o=new THREE.Mesh(g,m);o.scale.set(sx,sy,sz);o.position.set(x,y,zz);sc.add(o);return o;};
+const pole=M(0x4a4f57),box=M(0x15181e);
+const specs=[];for(let sz=-1500;sz<69000;sz+=2000){const st=ST.find((t,i)=>i>0&&t.z>sz);if(!st)continue;const dist=st.z-sz;if(dist<700)continue;specs.push({sz,asp:dist<2500?'y':'g',si:0});}for(let i=1;i<=12;i++)specs.push({sz:ST[i].z-400,asp:'r',si:i});specs.sort((a,b)=>a.sz-b.sz);specs.forEach(sp=>{const sz=sp.sz,asp=sp.asp,y0=Ef(sz);if(sp.si)REDS.push({z:sz,done:false,on:true,st:sp.si});
+ mk(B,pole,.3,6,.3,-5.4,y0+3,sz);mk(B,box,1.7,4.4,.6,-5.4,y0+6.2,sz);
+ const SG={z:sz,base:asp,st:sp.si,lv:0,sev:-1,hit:false,m:{},h:{}};
+ [['r',7.6],['y',6.2],['g',4.8]].forEach(a=>{const mm=new THREE.MeshBasicMaterial({color:0x222222});SG.m[a[0]]=mm;mk(Cy,mm,1.1,.12,1.1,-5.4,y0+a[1],sz-.35).rotation.x=Math.PI/2;const hs=new THREE.Sprite(new THREE.SpriteMaterial({map:HALOTEX,color:0x222222,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending,fog:false}));hs.scale.set(16,16,1);hs.position.set(-5.4,y0+a[1],sz-1.2);hs.visible=false;sc.add(hs);SG.h[a[0]]=hs;});SIGS.push(SG);});})();
+// ---- V93 閉塞區間號誌（四顯示）與前行列車 ----
+// 號誌每 2 km 一架，保護其後 2 km 的閉塞區間。顯示：紅＝停止／黃＝注意（限 160）／黃綠＝減速（限 225）／綠＝進行。
+const BLK={L:{on:false,z:0,v:0,cool:12,said:false},tHud:0,over:false,ot:0,shown:false,eb:false,roll:0,off:0,dip:0,tr:0,toff:0,tdip:0},LDR_LEN=300,ASPN=['進行','減速','注意','停止'],ASPC=['#3ddc84','#b6e04a','#ffc83a','#ff3b30'],BLK_A=.7,BLK_CAP=[999,225,160,0];
+const LG=new THREE.Group();LG.visible=false;sc.add(LG);
+const LC=[];(function(){const carG=new THREE.BoxGeometry(3.4,3.4,24),strG=new THREE.BoxGeometry(3.46,.4,24.1),roofG=new THREE.BoxGeometry(2.8,.3,24),tailG=new THREE.BoxGeometry(2.6,.8,.2),mW=new THREE.MeshLambertMaterial({color:0xeef1f6}),mO=new THREE.MeshLambertMaterial({color:0xff8a1f}),mD=new THREE.MeshLambertMaterial({color:0x3a4250}),mT=new THREE.MeshBasicMaterial({color:0xff2a2a});
+ for(let i=0;i<12;i++){const g=new THREE.Group(),a=new THREE.Mesh(carG,mW),b=new THREE.Mesh(strG,mO),c=new THREE.Mesh(roofG,mD);b.position.y=-.2;c.position.y=1.7;g.add(a,b,c);if(i===11){const t=new THREE.Mesh(tailG,mT);t.position.set(0,.2,-12.1);g.add(t);}LG.add(g);LC.push(g);}})();
+const blkPanel=document.createElement('div');blkPanel.id='blkPanel';blkPanel.style.cssText='position:fixed;left:50%;top:calc(66px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:3;background:rgba(8,14,28,.82);border:1px solid #fff3;border-radius:10px;padding:5px 12px;font-size:12px;line-height:1.5;max-width:94vw;text-align:center;display:none;pointer-events:none';document.body.appendChild(blkPanel);
+function blkSigSet(s){const m=s.m,v=s.sev,on={r:v===3,y:v===1||v===2,g:v===0||v===1},col={r:0xff3b30,y:0xffc83a,g:0x39ff88};['r','y','g'].forEach(k=>{m[k].color.setHex(on[k]?col[k]:0x222222);s.h[k].visible=on[k];s.h[k].material.color.setHex(col[k]);});}
+function blkLim(){if(phase!=='manual'||dirS!==1)return 999;let lim=999;
+ for(const s of SIGS){const dist=s.z-z;if(dist>4500)break;if(dist<-2000)continue;
+  if(s.lv===3){if(dist>0)lim=Math.min(lim,Math.floor(Math.sqrt(2*BLK_A*Math.max(0,dist-40))*3.6));}
+  else if(s.lv===2||s.lv===1){const cap=BLK_CAP[s.lv]/3.6,al=dist>0?Math.sqrt(cap*cap+2*BLK_A*dist):cap;lim=Math.min(lim,Math.floor(al*3.6));}}
+  if(z<ST[13].z&&ST[12].z-400-z<5000){const dz=ST[12].z-400-z;lim=Math.min(lim,Math.floor(Math.sqrt(20.8*20.8+2*BLK_A*Math.max(0,dz))*3.6));}
+ return lim;}
+function blkTick(sdt){const L=BLK.L,man=phase==='manual'&&dirS===1;redTick(v*3.6);
+ if(BLK.over){ev.cut=true;ev.ebk=1;v=Math.max(0,v-8*sdt);const rdt=sdt/TIME_SCALE,kk=1-Math.exp(-rdt*3);BLK.roll+=(BLK.tr-BLK.roll)*kk;BLK.off+=(BLK.toff-BLK.off)*kk;BLK.dip+=(BLK.tdip-BLK.dip)*kk;BLK.ot+=rdt;if(BLK.ot>2.6)blkOverShow();}
+ else if(!man){if(L.on){L.on=false;L.said=false;}L.cool=Math.max(L.cool,15);}
+ else if(!L.on){L.cool-=sdt;
+  if(L.cool<=0&&v>10&&idx>=1&&!ev.type&&!pendingBase&&!incidentPending){const D0=Math.max(3500,v*v/1.2+1800),sz0=z+D0,sd=ST[nextTargetIndex()].z;
+   if(sd-sz0>3500){L.on=true;L.z=sz0;L.v=52+Math.random()*18;L.said=false;say('📡 前方正線有前行列車：閉塞號誌將依區間占用顯示，請依 ATC 許可速度行駛。');}else L.cool=10;}}
+ if(man&&L.on&&!BLK.over&&(L.z-LDR_LEN)-(z+1)<3){BLK.cause='leader';L.v=0;const kk0=v*3.6;noseDrop();blkWreck(kk0);say('💥 追撞前行列車！列車翻覆脫軌，事故重大。');beep(90,.6);tlog('collision',{type:'leader',spd:Math.round(v*3.6)});}
+ if(L.on){L.z+=L.v*sdt;const sd=ST[nextTargetIndex()].z;if(!BLK.over&&(sd-L.z<2800||L.z-z>16000)){L.on=false;L.cool=45+Math.random()*60;say('ℹ 前行列車已駛離（進入待避線），前方閉塞區間恢復暢通。');}}
+ if(man&&!BLK.over&&z>=ST[12].z-400&&z<ST[13].z&&v*3.6>75){BLK.cause='overrun';const kk1=v*3.6;noseDrop();blkWreck(kk1);say('💥 進入左營站時速度超過 75 km/h，衝出終點站！');beep(90,.6);}
+ for(const s of SIGS){let lv=0;if(L.on){const tail=L.z-LDR_LEN;if(L.z>s.z&&tail<s.z+2000)lv=3;else if(L.z>s.z+2000&&tail<s.z+4000)lv=2;else if(L.z>s.z+4000&&tail<s.z+6000)lv=1;}
+  s.lv=lv;let bs=s.base==='y'?2:0;if(s.st){const sl=stopLists[serviceMode]||stopLists.all;bs=(sl.includes(s.st)&&s.st>idx)?3:0;const rr=REDS.find(q=>q.st===s.st);if(rr)rr.on=bs===3;}const sev=Math.max(lv,bs);if(sev!==s.sev){s.sev=sev;blkSigSet(s);}
+  if(man&&Math.abs(s.z-z)<1000){if(z<s.z-900)s.hit=false;if(lv===3&&!s.hit&&z>=s.z&&z<s.z+300&&v*3.6>6){s.hit=true;pen+=200;BLK.eb=true;say('🛑 冒進閉塞停止信號！ATC 緊急煞車，扣 200 分。');beep(180,.6);}}}
+ LG.visible=L.on&&L.z-z<2900&&L.z-z>-400;
+ if(LG.visible)LC.forEach((g,i)=>{const qc=L.z-12-i*25;g.position.set(-2.25,Ef(qc)+1.2,qc);g.rotation.x=-Math.atan2(Ef(qc+13)-Ef(qc-13),26);});
+ const nw=performance.now();if(nw-BLK.tHud>150){BLK.tHud=nw;blkHud((phase==='manual'||phase==='dwell')&&dirS===1);}}
+function blkWreck(kmh){if(BLK.over)return;BLK.over=true;BLK.ot=0;BLK.hitKmh=kmh;BLK.cause=BLK.cause||ev.type||'';const sg=Math.random()<.5?-1:1;BLK.tr=sg*1.3;BLK.toff=sg*3.2;BLK.tdip=-.12;ev.cut=true;ev.ebk=1;ev.shake=Math.max(ev.shake,4);}
+function blkOverShow(){if(BLK.shown)return;BLK.shown=true;v=0;const n=scores.length,tot=scores.reduce((a,b)=>a+b,0),o=document.createElement('div');o.id='blkOver';o.style.cssText='position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(40,0,0,.82);color:#fff;text-align:center;font-family:inherit';
+ o.innerHTML=`<div style="max-width:min(460px,88vw)"><div style="font-size:30px;font-weight:800;color:#ff6b6b;margin-bottom:10px">💥 遊戲結束</div><div style="font-size:16px;line-height:1.8">${BLK.cause==='leader'?'列車追撞前行列車':BLK.cause==='overrun'?'列車進入終點站時速度仍超過 75 km/h，衝出終點站':BLK.cause==='person'?'列車撞擊軌道上人員':BLK.cause==='rock'?'列車撞擊落石':'列車撞擊軌道上障礙物'}，車體翻覆脫軌。<br>衝撞時速 <b>${Math.round(BLK.hitKmh||0)} km/h</b>｜已停靠 <b>${n}</b> 站｜累計得分 <b>${tot}</b>｜扣分 <b>${pen.toFixed(0)}</b></div><button type="button" id="blkRe" style="margin-top:18px;padding:11px 26px;font-size:16px;font-weight:700;border-radius:9px;border:1px solid #ff9d9d;background:#7a1f1f;color:#fff;cursor:pointer">重新開始</button></div>`;document.body.appendChild(o);document.getElementById('blkRe').onclick=()=>location.reload();}
+function blkHud(show){const bp=blkPanel;if(!show||document.body.classList.contains('clear')){bp.style.display='none';return;}
+ const nx=[];for(let i=0;i<SIGS.length&&nx.length<4;i++)if(SIGS[i].z>z)nx.push(SIGS[i]);const lim=sigLimit(),L=BLK.L;
+ let h='<b>🚦 閉塞號誌</b>';if(!nx.length)h+='　<span style="color:#9ff0b0">前方已無號誌機</span>';
+ nx.forEach(s=>{const dd=s.z-z,c=ASPC[s.sev],nm=(s.lv<3&&s.st&&s.sev===3)?'進站60':ASPN[s.sev];h+=`　<span style="white-space:nowrap"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};box-shadow:0 0 6px ${c};margin-right:4px"></span>${dd>=1000?(dd/1000).toFixed(1)+'km':Math.round(dd)+'m'} <b style="color:${c}">${nm}</b></span>`;});
+ h+=`<br>ATC 號誌許可 <b>${lim>=999?'—':lim+' km/h'}</b>　`+(L.on?`前行列車 <b>${Math.max(0,(L.z-LDR_LEN-z)/1000).toFixed(1)} km</b>｜${Math.round(L.v*3.6)} km/h`:'<span style="color:#9ff0b0">前方閉塞區間無列車</span>');
+ bp.innerHTML=h;bp.style.display='block';}
+function loop(now){
+ requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;t0+=dt;const simDt=dt*TIME_SCALE;
+ blkTick(simDt);const targetIdx=nextTargetIndex(),nxt=ST[targetIdx],d=nxt.z-z;let limK=d>2500?CFG.drive.warn:d>1200?160:d>300?100:40;if(idx===0&&z<-500)limK=45;if(slowUntil>z)limK=Math.min(limK,160);if(ev.lim)limK=Math.min(limK,ev.lim);limK=Math.min(limK,sigLimit());const physicalCap=CFG.drive.max/3.6;if(phase==='diverting'&&maintenanceTarget)limK=Math.round((maintenanceTarget.vmax||16.7)*3.6);if(pendingBase){const df=pendingBase.from-z;limK=Math.min(limK,df>3000?CFG.drive.warn:df>1500?160:df>600?100:70);}
+ if(doorOpen&&boardT>0){boardT-=dt;if(boardT<=.75||(boardT<3&&platW[1]===0))boardT=0;if(boardT<=0){boarded=true;}}
+ if(phase==='cabchange'){cabT+=dt;const fd=$('fade');if(!cabFlip&&cabT>=1.4){cabFlip=true;v=0;if(cabMode==='returning'){dirS=-1;}else{dirS=1;clearMaintenanceTrack();maintenanceTarget=null;maintenanceX=-2.25;maintenanceReturn=false;$('goDepot').style.display='';$('continueRun').style.display='';$('continueRun').textContent='繼續行駛';}}if(cabFlip&&cabT>=1.9)fd.style.opacity=0;if(cabFlip&&cabT>=2.6){if(cabMode==='returning'){phase='returning';say('已到另一端駕駛室。按 W 倒車，沿支線駛回正線；退出道岔後會自動停車。');}else{phase='manual';warned=false;slowUntil=z+3000;incidentDone=true;say('已換端並回到正線，沿正線南下；接下來 3 km 限速 160 km/h。');}}}
+ // V27：取消接近車站的自動廣播，由駕駛員自行廣播。
+ if(phase==='diverting'){
+  const rem=maintenanceTarget.z-z,dir=Math.sign(rem)||1,dist=Math.abs(rem),cap=maintenanceTarget.vmax||16.7;/* V69：匝道由駕駛員手動控速；系統只限制上限並在股道終點前保護性減速 */if(keys.w&&!keys.b&&!keys.s)v+=1.25*simDt;v-=((keys.b||keys.s)?1.8:.12)*simDt;const lim=Math.min(cap,Math.sqrt(2*1.25*dist));if(v>lim)v=Math.max(lim,v-2.5*simDt);if(v<0)v=0;
+  maintenanceX=routeX(z);
+  if(dist<Math.max(1,v*simDt+0.5)&&maintenanceTarget.final){z=maintenanceTarget.z;v=0;tlog('finish',{avg:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0,pen});phase='end';idx=ST.length-1;maintenanceX=maintenanceTarget.x;say(`入庫完成！列車已停妥於${maintenanceTarget.n}股道。平均 ${scores.length?Math.round(scores.reduce((a,b)=>a+b)/scores.length):0} 分。`);}else if(dist<Math.max(1,v*simDt+0.5)){z=maintenanceTarget.z;v=0;phase='maintenance';maintenanceX=maintenanceTarget.x;$('incidentTitle').textContent='已進入維修基地';$('incidentText').textContent=`列車已沿支線進入「${maintenanceTarget.n}」，停妥於維修股道。檢修完成後，請走到列車另一端的駕駛室，倒車駛回正線。`;$('continueRun').textContent='完成維修，前往另一端駕駛室';$('continueRun').style.display='';$('incident').style.display='block';say(`已進入${maintenanceTarget.n}維修股道，列車停妥。`);}
+ }else if(phase==='manual'){
+   if(pendingBase&&z>=pendingBase.from){if(v*3.6<=75){maintenanceTarget=pendingBase;maintenanceFromZ=pendingBase.from;pendingBase=null;maintenanceReturn=true;phase='diverting';doorOpen=false;keys.w=keys.b=keys.s=0;$('goDepot').style.display='none';$('continueRun').style.display='none';$('incident').style.display='none';say(`道岔切換完成，轉入${maintenanceTarget.n}支線。按 W 加速、B 煞車，限速 ${Math.round((maintenanceTarget.vmax||16.7)*3.6)} km/h，請對準股道終點停車。`);}else{const nb=nextBaseAhead();say(nb?`過岔速度過快（需 75 km/h 以下），已越過道岔；改往${nb.n}，請提早減速。`:'過岔速度過快，已越過道岔；前方已無基地，請繼續行駛。');pendingBase=nb;}}
+  evTick(dt,simDt,d);
+  // 行駛中隨機觸發一次可選擇處置的突發狀況。
+  if(!incidentDone&&!incidentPending&&!ev.type&&!ev.pend&&z>2500&&z<47500&&Math.random()<simDt*.012){incidentPending=true;keys.w=keys.b=0;$('incidentTitle').textContent='突發狀況：車載系統警示';$('incidentText').textContent='偵測到需要檢查的系統警示。你可以申請沿線基地維修（列車會繼續沿正線行駛，到前方道岔才轉入基地），或選擇繼續行駛（接下來 3 km 限速 160 km/h）。';$('incident').style.display='block';}
+  if(phase==='manual'){
+  brk+=((keys.b?1:keys.s?.45:(keys.w?0:Math.max(-lev,0)))-brk)*Math.min(1,simDt*8);
+  if(ev.ebk||BLK.eb||BLK.over)brk=Math.max(brk,ev.ebk||1);const pin=(keys.b||keys.s||ev.cut||BLK.eb||BLK.over)?0:(keys.w?1:Math.max(lev,0));pw+=((doorOpen?0:pin)-pw)*Math.min(1,simDt*5);v+=1.8*pw*ev.tf*simDt;
+  v-=(brk*ev.bf+.02+.00004*v*v+grade(z)*.0098)*simDt;if(v>physicalCap)v=physicalCap;
+  if(d<2500&&!warned){warned=true;say('⚠ 即將進站，請煞車對準紅色停車標誌。');}
+  if(v*3.6>limK+5){pen+=simDt*2;if(now-lastW>800){lastW=now;beep(520,.15);}}
+  if(v<=0){v=0;const off=z-nxt.z;
+   if(off<-80){if(!ev.cut&&!keys.w&&d<2500)say('尚未到達月台，請按 W 慢慢前進。');}
+   else if(brk>.05||!keys.w){idx=targetIdx;const stopPenalty=pen-penAtLastStop;penAtLastStop=pen;const stopErrorM=Math.abs(off)*5;const stopLoss=Math.max(0,stopErrorM-5)*1.5;const sc2=Math.max(0,Math.min(100,Math.round(100-stopLoss-stopPenalty)));scores.push(sc2);
+    const txt=stopErrorM<1?'完美停靠！':(off<0?`差 ${(Math.abs(off)*5).toFixed(1)} m 到位`:`過站 ${(off*5).toFixed(1)} m`);
+    if(idx===ST.length-1){tlog('finish',{avg:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):0,pen});phase='end';say(`${txt} 入庫完成！平均 ${Math.round(scores.reduce((a,b)=>a+b)/scores.length)} 分。`);}
+    else{phase='dwell';say(`${txt} 本站 ${sc2} 分。`);
+    // V27：取消到站自動廣播，由駕駛員自行廣播。
+   }}}
+  }
+ }else if(phase==='returning'){const m=maintenanceTarget,cap=m.vmax||16.7,clr=m.from-60,dist=Math.max(0,z-clr);if(keys.w&&!keys.b&&!keys.s)v+=1.25*simDt;v-=((keys.b||keys.s)?1.8:.12)*simDt;const lim=Math.min(cap,Math.sqrt(2*1.25*dist));if(v>lim)v=Math.max(lim,v-2.5*simDt);if(v<0)v=0;if(dist<=Math.max(.5,v*simDt)){z=clr;v=0;phase='clear';$('incidentTitle').textContent='已退出支線，停於正線';$('incidentText').textContent='列車已駛出道岔並停妥於正線。請走到另一端駕駛室，換端後繼續南下營運。';$('goDepot').style.display='none';$('continueRun').textContent='前往另一端駕駛室';$('continueRun').style.display='';$('incident').style.display='block';say('已退出道岔，停於正線。');}
+}else v=0;
+ z+=(phase==='diverting'&&maintenanceTarget?Math.sign(maintenanceTarget.z-z):dirS)*v*simDt;doorA+=((doorOpen?1:0)-doorA)*Math.min(1,dt*4);
+ // 環境更新
+ const base=Math.floor((z-(dirS<0?2600:600))/CL);chunks.forEach((c,i)=>{const t=base+(((i-base)%NC)+NC)%NC;if(c.idx!==t)setChunk(c,t);c.g.position.x=0;c.g.visible=(t*CL+CL/2)<MAIN_END;});
+ const mb=Math.floor((z-(dirS<0?7000:1000))/500);mtn.forEach((o,i)=>{const t=mb+(((i-mb)%16)+16)%16;if(o.idx!==t){o.idx=t;const q=Math.sin(t*91.7)*1e4,r=q-Math.floor(q),w=250+r*350,h=150+r*400;o.m.scale.set(w,h,w);o.m.position.set((t%2?1:-1)*(700+r*700),h/2,t*500+250);}});
+ const gTile=Math.floor(z/80);if(gTile!==groundTile){groundTile=gTile;const gz=gTile*80+40;groundL.position.z=gz;groundR.position.z=gz;groundC.position.z=gz;gt.offset.y=-((gTile*80)/100)%1;}
+ // 只在入口下坡的開口區移除中央地表；左右兩側地形始終保留，避免整片地面消失後列車看起來懸浮。
+ // 地下段相機位於 y<0，地表使用朝上的 FrontSide 材質，從地底往上看不會穿透地表。
+ const rampCut=z>-1220&&z<-250;
+ // 板橋站後中央地表帶也暫時打開，讓駕駛室看得見軌道從地下出口爬升至高架；兩側地形仍保留。
+ const banqiaoClimbCut=z>2500&&z<5350;
+ groundC.visible=!(rampCut||banqiaoClimbCut);
+ groundL.visible=true;
+ groundR.visible=true;
+ const E0=Ef(z),inT=E0<-5||inMT(z);
+ tun+=((inT?1:0)-tun)*Math.min(1,dt*2.2);
+ sc.background.copy(night?NIGHT:DAY).lerp(TUN,tun);sc.fog.color.copy(sc.background);sc.fog.near=250-240*tun;sc.fog.far=2600-2400*tun;
+ hemi.intensity=(night?.18:.85)*(1-.5*tun)+.1*tun;
+ if(ev.storm>.01){const k=ev.storm*(1-tun);sc.background.lerp(STORMC,.75*k);sc.fog.color.copy(sc.background);sc.fog.near*=1-.8*k;sc.fog.far=Math.max(450,sc.fog.far*(1-.72*k));hemi.intensity*=1-.4*k;}if(ev.dark>.01){hemi.intensity*=1-.7*ev.dark;sun.intensity*=1-.7*ev.dark;}
+ // 對向列車
+ if(oz===null){if(!demo&&idx===0&&z>-1300){demo=1;oz=-290;onSp=0;}else{otm-=dt;if(otm<=0){oz=z+3000;onSp=70;}}}else{if(demo===1&&idx===0)onSp=0;else onSp=Math.min(70,onSp+4*dt);oz-=onSp*dt;if(oz<z-450){oz=null;demo=2;otm=40+Math.random()*60;ON.visible=false;}else{ON.visible=true;const oe=Ef(oz);ON.position.set(2.25,oe-.5,oz);ON.rotation.x=-Math.atan2(Ef(oz+40)-Ef(oz-40),80);}}
+ if(phase==='returning'||phase==='clear'||phase==='cabchange'){oz=null;ON.visible=false;otm=Math.max(otm,8);}
+ people(t0,z);noseTick(dt);
+ // 攝影機（僅駕駛室視角）
+ const dS=dirS,viewX=(maintenanceTarget&&phase!=='manual'&&phase!=='dwell')?routeX(z):-2.25,hx=(routeX(z+1)-routeX(z-1))/2;maintenanceX=viewX;const cy=Et(z)+3.9+Math.sin(t0*11)*.012*Math.min(v/30,2);cam.position.set(viewX,cy,z-6*dS);cam.lookAt(viewX+hx*250*dS,Et(z+250*dS)+3.7,z+250*dS);evCam();if(BLK.over){cam.position.x+=BLK.off;cam.position.y+=BLK.dip;cam.rotateZ(BLK.roll);}cabRig.position.copy(cam.position);cabRig.quaternion.copy(cam.quaternion);cabRig.visible=!document.body.classList.contains("clear");cam.rotateZ(Math.sin(t0*1.7)*.0015*Math.min(v/20,3));look+=((keys.a?.7:keys.d?-.7:0)-look)*Math.min(1,dt*5);cam.rotateY(look);PT.cars.forEach((c,i)=>{const qc=z-dS*(22.5+i*26),hc=(routeX(qc+1)-routeX(qc-1))/2;c.rotation.order='YXZ';c.position.set(routeX(qc),Et(qc)-.5,qc);c.rotation.y=Math.atan2(dS*hc,dS);c.rotation.x=-Math.atan2(Et(qc+13*dS)-Et(qc-13*dS),26);});window.__cg.position.z=z*.97;window.__cg.visible=tun<.5;
+ head.position.set(viewX,Et(z)+3,z+2*dS);head.target.position.set(viewX,Et(z)+1,z+200*dS);
+ // V26 已移除持續行駛合成音，避免基地未加速時仍有噴氣／嘶嘶聲。
+ if((window.__fc=(window.__fc||0)+1)%20===0)mirSetup();{[0,1].forEach(i=>{const sd=i?1:-1,wx=-sd*dS;if(!(look*sd<-.06))return;const c=monCam[i];c.position.set(viewX+wx*1.95,Et(z-13*dS)+4.2,z-13*dS);c.lookAt(viewX+wx*7.4,Et(z)+1.4,z-135*dS);R.setRenderTarget(monRT[i]);R.render(sc,c);R.setRenderTarget(null);
+   const wc=platW[i],bc=platB[i],tx=(sd<0?'左 ':'右 ')+(phase!=='dwell'||v>.5?'行駛中｜無月台':i===0?'此側無月台':Math.abs(z-ST[idx].z)>15?'未對準月台':`候車 ${wc} 人｜已上車 ${bc} 人`);if(tx!==monTxt[i]){monTxt[i]=tx;monDraw(i,tx);}});}
+  R.render(sc,cam);
+ if(!document.body.classList.contains('clear')){R.setScissorTest(true);MR.forEach((r,i)=>{const sd=(i?-1:1)*dS,cx=viewX+sd*2.15;R.setViewport(r[0],r[1],r[2],r[3]);R.setScissor(r[0],r[1],r[2],r[3]);mc.aspect=r[2]/r[3];mc.updateProjectionMatrix();mc.position.set(cx,cy-.5,z-5*dS);mc.lookAt(cx+sd*24,cy-3.4,z-100*dS);R.render(sc,mc);});R.setScissorTest(false);R.setViewport(0,0,innerWidth,innerHeight);}
+ // HUD
+ const kmh=v*3.6,bd=v*v/2,mode={dwell:'停站',manual:'手動駕駛',diverting:'轉入維修支線',maintenance:'基地檢修',end:'入庫完成',returning:'倒車駛回正線',clear:'停於正線待命',cabchange:'換端駕駛室'}[phase],bad=phase==='manual'&&bd>d-10&&v>1,stopped=phase!=='manual';
+ gauge(kmh,limK);if(phase!=='manual'){pw=0;brk=0;}
+ $('pl').style.top=(37-(pw-brk)*37)+'px';const nt=brk>.05?'B'+Math.round(brk*7):pw>.05?'P'+Math.round(pw*5):'N';$('pn').textContent=nt;$('bf').style.height=Math.max(pw,brk)*100+'%';$('bf').style.background=brk>pw?'#ff8a1f':'#2f7bff';
+ $('rd').innerHTML=`模式 <b>${mode}</b><br>${stopped?'':`距停車點 <b>${Math.max(0,d).toFixed(0)} m</b><br>煞車距離 <b class="${bad?'bad':'ok'}">${bd.toFixed(0)} m</b><br>限速 <b class="${kmh>limK+5?'bad':'ok'}">${limK} km/h</b><br>`}路段 <b>${seg(z)}</b><br>操控模式 <b>手動 ${CFG.drive.max}</b><br>鳴笛 <b>H／按鈕</b>`;
+ $('s1').innerHTML=`<b>下一停靠站</b><br>${nxt.n} ${stopped?'':Math.max(0,d/1000).toFixed(1)+' km'}`;
+ $('s2').innerHTML=`車門 <b class="${doorOpen?'bad':'ok'}">${doorOpen?'開':'關'}</b><br>評分 ${scores.length?scores[scores.length-1]:'—'}`;
+ const modeLabel=serviceMode==='all'?'站站樂':serviceMode==='frog'?'跳蛙式':'直達車';
+ const routeLabel=serviceMode==='direct'&&idx<12?`${ST[idx].n} → 左營（中途不停）`:`${ST[idx].n} → ${nxt.n}`;
+ const climbLabel=(z>=2500&&z<=5350)?'<br><span style="color:#ffd166;font-weight:800">▲ 板橋後爬升段：地下出口 → 高架線</span>':'';
+ $('top').innerHTML=`${routeLabel}${climbLabel}<br>${modeLabel}　快節奏 ×${TIME_SCALE}<br><span style="color:#9ff0b0;font-weight:800">累計得分 ${scores.reduce((a,b)=>a+b,0)}（每站滿分 100）</span>　本站評分 ${scores.length?scores[scores.length-1]:'尚未完成停靠'}　<span class="${pen>0?'bad':'ok'}">超速扣分 ${pen.toFixed(0)}</span>`;
+ $('lcd').innerHTML=`<div class="lr"><span class="ic">🚉</span><i>下一站</i><b>${nxt.n}</b></div><div class="lr"><i>距離</i><b>${stopped?'—':(Math.max(0,d)/1000).toFixed(1)+' km'}</b></div><div class="lr"><i>限速</i><b>${stopped?'—':limK+' km/h'}</b></div><div class="lr"><i>時間</i><b>${new Date().toLocaleTimeString('zh-TW',{hour12:false})}</b></div><div class="lr sm">車門 <b class="${doorOpen?'bad':'ok'}">${doorOpen?'開':'關'}</b>　評分 ${scores.length?scores[scores.length-1]:'—'}</div>`;vbar();
+ {const gd=grade(z);let st,cl;
+ if(phase==='dwell'){st=idx===0?'基地待命':'停站中';cl='ok';}else if(phase==='end'){st='已入庫';cl='ok';}else if(ev.type&&ev.stat){st=ev.stat;cl=ev.cl==='bad'?'bad':ev.cl==='ok'?'ok':'warn';}else if(phase==='diverting'){st=`匝道行駛・限速 ${Math.round((maintenanceTarget.vmax||16.7)*3.6)} km/h｜W 加速 B 煞車`;cl='warn';}else if(phase==='returning'){st='倒車駛回正線・限速 60 km/h';cl='warn';}else if(phase==='clear'||phase==='cabchange'){st='停妥・換端中';cl='ok';}else if(kmh>CFG.drive.warn){st='⚠ 超過 '+CFG.drive.warn+' km/h 營運規定上限';cl='bad';}else if(kmh>limK+5){st='超過目前路段參考限速';cl='bad';}else if(bad){st='煞車距離不足！請立即煞車';cl='bad';}else if(pendingBase){st=`前方${pendingBase.n}道岔 ${Math.max(0,(pendingBase.from-z)/1000).toFixed(1)} km｜過岔限速 75 km/h`;cl='warn';}else if(d<2500){st='進站區間・請依限速減速';cl='warn';}else{st='系統正常・請確認限速';cl='ok';}
+ $('rp').innerHTML=`<div class="sp"><b>${Math.round(kmh)}</b> <small>km/h</small><span class="bd">${nt}</span></div><div class="rw"><i>下一站</i><b>${nxt.n}</b></div><div class="rw"><i>距離</i><b>${stopped?'—':(Math.max(0,d)/1000).toFixed(1)+' km'}</b></div><div class="rw"><i>限速</i><b>${stopped?'—':limK+' km/h'}</b></div><div class="rw"><i>煞車距離</i><b class="${stopped?'':bad?'bad':'ok'}">${stopped?'—':bd>=1000?(bd/1000).toFixed(2)+' km':bd.toFixed(0)+' m'}</b></div><div class="rw"><i>時間</i><b>${new Date().toLocaleTimeString('zh-TW',{hour12:false})}</b></div><div class="rw"><i>坡度</i><b>${gd>=0?'+':''}${gd.toFixed(1)}‰</b></div><div class="st ${cl}">${st}</div>`;const ln=(stopped?ST[idx]:nxt).n;$('loc').textContent='📍 '+ln+(/基地/.test(ln)?'':'站');}
+}
+requestAnimationFrame(loop);
+})();
+</script></body></html>
